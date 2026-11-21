@@ -1,0 +1,9 @@
+[package]
+name = "compilador-shaders"
+version = "1.0.0"
+edition = "2021"
+description = "Valida los shaders WGSL de ludokit y genera su versión GLSL ES 3.00 (WebGL2 / OpenGL ES) con naga."
+publish = false
+
+[dependencies]
+naga = { version = "=25.0.1", default-features = false, features = ["wgsl-in", "glsl-out"] }

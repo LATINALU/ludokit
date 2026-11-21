@@ -1,0 +1,30 @@
+{
+  "name": "ludokit",
+  "version": "1.0.0",
+  "description": "Librería de dominio para videojuegos (de un jugador a MMO): motor de tiempo, ECS, física 2D, colisiones, navegación, IA, combate RPG, botín, economía, progresión, mundo procedural, game feel, netcode autoritativo y persistencia.",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./archivos": "./src/infraestructura/persistencia/almacen-archivos.ts",
+    "./vfx/*": "./terceros/vfx/*"
+  },
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts test/*.test.mjs",
+    "tipos": "tsc -p tsconfig.json",
+    "ejemplo:economia": "node ejemplos/economia.ts",
+    "ejemplo:plataformas": "node ejemplos/plataformas.ts",
+    "ejemplo:mmo": "node ejemplos/mmo.ts",
+    "ejemplo:sonidos": "node ejemplos/sonidos.ts",
+    "verificar": "npm run tipos && npm test"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^22.19.1",
+    "typescript": "^5.9.3"
+  }
+}

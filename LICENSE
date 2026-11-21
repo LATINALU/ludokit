@@ -1,0 +1,53 @@
+LICENCIA LUDOKIT DE USO Y VERSIONES ABIERTAS (LLVA) — versión 1.0
+Copyright (c) 2026 LATINALU
+
+Esta licencia cubre el código, los datos, las fórmulas, las tablas, los presets, los shaders, la documentación y los
+vectores de prueba de este repositorio ("el Material"), con la excepción indicada en la cláusula 7.
+
+1. PERMISO DE USO
+   Se concede a cualquier persona u organización, de forma gratuita, mundial y por tiempo indefinido, el permiso de
+   usar, copiar, estudiar, modificar y ejecutar el Material, incluso dentro de videojuegos, herramientas, servicios y
+   otros productos, sean gratuitos o comerciales.
+
+2. PERMISO PARA CREAR Y PUBLICAR VERSIONES PROPIAS
+   Se permite crear versiones derivadas del Material (forks, ports a otros lenguajes o motores, ampliaciones,
+   recortes, traducciones o reorganizaciones) y publicarlas abiertamente, por ejemplo en repositorios públicos,
+   gestores de paquetes o sitios web, de forma gratuita o comercial, siempre que se cumplan las condiciones 3 a 5.
+
+3. ATRIBUCIÓN
+   Toda versión derivada publicada del Material, y toda redistribución del Material, debe:
+   a) incluir una copia de esta licencia (o un enlace permanente a ella) y el aviso de copyright de arriba;
+   b) indicar de forma visible, en su documentación principal, que se basa en "ludokit" de LATINALU, con un enlace
+      al repositorio original.
+   Los videojuegos y productos que USAN el Material sin publicar una versión de la librería solo necesitan conservar
+   este aviso en sus créditos, en su documentación o en un archivo de licencias de terceros.
+
+4. CAMBIOS IDENTIFICADOS
+   Las versiones derivadas publicadas deben indicar que fueron modificadas, por ejemplo con un archivo de cambios o
+   con una nota en la documentación. No se exige detallar cada cambio.
+
+5. SIN SUPLANTACIÓN
+   No se permite presentar el Material original como obra propia, ni usar el nombre "ludokit" o el nombre del autor
+   para dar a entender que una versión derivada es la versión oficial o que cuenta con su respaldo. Las versiones
+   derivadas pueden decir que están "basadas en ludokit".
+
+6. SIN GARANTÍA
+   EL MATERIAL SE ENTREGA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O IMPLÍCITA, INCLUIDAS LAS DE
+   COMERCIABILIDAD, IDONEIDAD PARA UN FIN DETERMINADO Y NO INFRACCIÓN. EN NINGÚN CASO EL AUTOR SERÁ RESPONSABLE DE
+   RECLAMOS, DAÑOS U OTRAS RESPONSABILIDADES DERIVADAS DEL USO DEL MATERIAL O RELACIONADAS CON ÉL.
+
+7. MATERIAL DE TERCEROS
+   La carpeta `terceros/` contiene material de terceros que conserva su propia licencia (MIT, ver
+   `terceros/vfx/LICENSE` y `terceros/vfx/NOTICE.md`). Esta licencia no reemplaza ni modifica esa licencia. Quien
+   redistribuya esa carpeta debe cumplir sus términos, incluido conservar sus avisos de copyright.
+
+8. TERMINACIÓN
+   Si se incumplen las condiciones 3 a 5, los permisos de esta licencia terminan para quien las incumpla. Se
+   restablecen si el incumplimiento se corrige dentro de los 30 días siguientes a recibir un aviso.
+
+---------------------------------------------------------------------------------------------------------------------
+SUMMARY IN ENGLISH (for reference only; the Spanish text above prevails)
+You may use, modify and run this Material in any project, including commercial games, and you may publish your own
+derived versions publicly, provided that you: keep this license and the copyright notice; credit "ludokit by
+LATINALU" with a link to the original repository; state that your version was modified; and do not present the
+original as your own work or as an official version. No warranty. The `terceros/` folder keeps its own MIT license.
