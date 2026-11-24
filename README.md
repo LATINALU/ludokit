@@ -10,6 +10,10 @@ sin gráficos y **sin números de ningún juego concreto**. Encima de eso trae *
 propios** (armas y calibres, vehículos, enemigos, clases) y un **protocolo de feedback** para que arte y sonido
 consuman la simulación. Sirve igual en la web, en Godot, Unity, Unreal, un motor propio o un servidor.
 
+> **¿Trabajás con un asistente de IA?** Está preparado para eso: tu IA lee [`AGENTS.md`](AGENTS.md) y
+> [`docs/IA.md`](docs/IA.md), consulta el [índice generado](docs/INDICE.md) y arma el plan con `npm run crear`. Ver la
+> [sección 13](#13-para-asistentes-de-ia) con pedidos de ejemplo.
+
 ```ts
 import { Pcg32, curva, modelos, disparos, datos, balance } from "ludokit";
 
@@ -45,7 +49,7 @@ m.enemigo(10_000);
 10. [Varios lenguajes](#10-varios-lenguajes)
 11. [Ejemplos](#11-ejemplos)
 12. [Pruebas, determinismo y verificación](#12-pruebas-determinismo-y-verificación)
-13. [Para asistentes de IA](#13-para-asistentes-de-ia)
+13. [Para asistentes de IA: cómo la usa una IA](#13-para-asistentes-de-ia)
 14. [Cómo extender la librería](#14-cómo-extender-la-librería)
 15. [Crear tu propia versión y licencia](#15-crear-tu-propia-versión-y-licencia)
 16. [Preguntas frecuentes](#16-preguntas-frecuentes)
@@ -291,14 +295,61 @@ dentro de TypeScript, ε relativo 1e-6 entre lenguajes. Ver [docs/DETERMINISMO.m
 
 ## 13. Para asistentes de IA
 
-- [`AGENTS.md`](AGENTS.md) (y `CLAUDE.md`): comandos y reglas no negociables.
-- [`docs/IA.md`](docs/IA.md): manual de experto de 0 a 100 (modelo mental, flujo, recetas por género, feedback, red,
-  errores típicos).
-- [`docs/INDICE.md`](docs/INDICE.md) y [`docs/catalogo.json`](docs/catalogo.json): todo lo que existe, generado desde
-  el código.
-- [`llms.txt`](llms.txt): resumen para modelos de lenguaje.
-- Referencias internas investigadas: [`docs/SHOOTER-3D.md`](docs/SHOOTER-3D.md) (cómo está hecho un shooter 3D, con
-  fuentes), [`docs/MOTORES.md`](docs/MOTORES.md) (Unity, Godot y Unreal), [`docs/RUST.md`](docs/RUST.md).
+ludokit está pensado para que **una IA (Claude Code, Cursor, Copilot, Codex, Gemini, un agente propio) lo use como un
+desarrollador experto que lo conoce de memoria**, sin inventar funciones y sin repetir errores típicos.
+
+### Qué lee la IA y para qué
+
+| Archivo | La IA lo usa para… | Cuándo |
+|---|---|---|
+| [`AGENTS.md`](AGENTS.md) / [`CLAUDE.md`](CLAUDE.md) | Reglas no negociables y comandos | **Automático**: los asistentes de código los cargan al abrir el repo |
+| [`docs/IA.md`](docs/IA.md) | Manual de experto de 0 a 100: modelo mental, flujo, recetas por género, feedback, red, rendimiento, errores típicos | Antes de escribir código |
+| [`docs/INDICE.md`](docs/INDICE.md) | Saber **qué existe** (cada módulo, archivo, función y clase con su descripción) | Antes de usar una API: si no está acá, no existe |
+| [`docs/catalogo.json`](docs/catalogo.json) | Lo mismo en datos: espacios, exportaciones, 58 modelos, preguntas, catálogos | Para buscar por código o filtrar |
+| [`llms.txt`](llms.txt) | Resumen y mapa de documentos para modelos de lenguaje | Primer contacto / navegación |
+| [`docs/SHOOTER-3D.md`](docs/SHOOTER-3D.md) · [`docs/MOTORES.md`](docs/MOTORES.md) · [`docs/RUST.md`](docs/RUST.md) | Referencias investigadas con fuentes: cómo se hace un shooter, cómo integrar con Unity/Godot/Unreal, cuándo usar Rust | Según el pedido |
+
+Todo el índice se **genera desde el código** (`npm run indice`), así la IA nunca lee documentación desactualizada.
+
+### Cómo trabaja una IA con ludokit (flujo esperado)
+
+1. **Entender el juego** con el asistente en vez de adivinar:
+   ```bash
+   npm run crear -- --respuestas '{"nucleo":["disparar"],"perspectiva":"primera","jugadores":"competitivo","realismo":"intermedio"}'
+   ```
+   o en código `modelos.recomendar({...})`. Devuelve modelos sugeridos, reglas combinadas, módulos y un **plan con
+   las clases exactas** (`mi-juego/PLAN.md`).
+2. **Consultar el índice** para cada clase del plan antes de usarla.
+3. **Implementar** siguiendo las reglas: azar (`Pcg32`) y `dt` inyectados, paso fijo, escalas como `Curva`, el
+   dominio no dibuja (emite `feedback.EventoJuego`).
+4. **Mover a Rust** lo que corre miles de veces por tick (rayos, hordas, visión): `docs/RUST.md`.
+5. **Verificar**: `npm run tipos && npm test` (incluye golden master y pruebas de arquitectura que detectan
+   `Math.random()` o imports prohibidos), y `npm run indice` si agregó exportaciones.
+
+### Pedidos de ejemplo (copiar y pegar en tu asistente)
+
+> Leé AGENTS.md y docs/IA.md. Quiero un **shooter 3D táctico en primera persona, 5 contra 5, en Godot con C#**.
+> Usá `npm run crear` para elegir los modelos, seguí docs/SHOOTER-3D.md y docs/MOTORES.md, usá el núcleo Rust para
+> los disparos del servidor y mostrame el plan antes de programar.
+
+> Con ludokit, armá un **juego de guerra contra zombis** con escuadras, defensas y oleadas que crecen de noche. Combiná
+> `guerra-zombis` con `mod-cooperativo`, usá `datos.criaturas` y la horda de Rust para 10 000 zombis.
+
+> Agregá a mi ARPG **dificultad infinita y paragon** sin tocar las reglas: solo curvas y los modelos
+> `arpg-temporadas` + `mod-infinito`. Escribí pruebas con semilla.
+
+> Hacé un **juego de carreras arcade** web con Three.js: `carreras.Vehiculo` con `datos.vehiculos`, rubber banding
+> suave, fantasma de contrarreloj y feedback de derrape con `feedback.friccionSonora`.
+
+### Lo que una IA debe hacer siempre (y lo verifican las pruebas)
+
+- No usar `Math.random()`, `Date.now()` ni `performance.now()` en reglas → **test de arquitectura**.
+- No importar motor, gráficos, red, infraestructura, modelos ni datos desde el dominio → **test de arquitectura**.
+- No inventar APIs: consultar `docs/INDICE.md`.
+- No copiar números, nombres ni textos de juegos comerciales: usar `datos/` propios o los del usuario.
+- No poner topes artificiales (niveles, pisos): usar `Curva`.
+- Si cambia una simulación a propósito, `npm run golden` y explicar el cambio.
+- Ofrecer `feedback.ESTILO_ACCESIBLE` (sin destellos ni sacudidas).
 
 ## 14. Cómo extender la librería
 
