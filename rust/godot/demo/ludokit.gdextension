@@ -1,0 +1,14 @@
+[configuration]
+entry_symbol = "gdext_rust_init"
+compatibility_minimum = 4.5
+reloadable = true
+
+[libraries]
+windows.debug.x86_64 = "res://bin/ludokit_godot.dll"
+windows.release.x86_64 = "res://bin/ludokit_godot.dll"
+linux.debug.x86_64 = "res://bin/libludokit_godot.so"
+linux.release.x86_64 = "res://bin/libludokit_godot.so"
+macos.debug = "res://bin/libludokit_godot.dylib"
+macos.release = "res://bin/libludokit_godot.dylib"
+android.debug.arm64 = "res://bin/libludokit_godot.so"
+android.release.arm64 = "res://bin/libludokit_godot.so"

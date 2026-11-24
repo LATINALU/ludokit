@@ -39,7 +39,20 @@ medir("campo_flujo_256x256_x20", 20, () => {
   for (let k = 0; k < 20; k++) campo.calcular([[128 + k, 128]], (c, r) => (bloq[r * 256 + c] ? Infinity : 1));
 });
 
-// 3) Horda: 5 000 agentes, 300 pasos (mismo algoritmo que Rust).
+// 3) Horda: 5 000 agentes, 300 pasos (mismo algoritmo que Rust: direcciones precalculadas por celda + mezcla bilineal).
+const DIRX = new Float32Array(256 * 256), DIRY = new Float32Array(256 * 256);
+for (let r = 0; r < 256; r++) for (let c = 0; c < 256; c++) { const [a, b] = campo.direccion(c, r); DIRX[r * 256 + c] = a; DIRY[r * 256 + c] = b; }
+function direccionSuave(x: number, y: number): [number, number] {
+  const fx = x - 0.5, fy = y - 0.5, c0 = Math.floor(fx), f0 = Math.floor(fy), tx = fx - c0, ty = fy - f0;
+  let dx = 0, dy = 0, peso = 0;
+  for (const [dc, df, w] of [[0, 0, (1 - tx) * (1 - ty)], [1, 0, tx * (1 - ty)], [0, 1, (1 - tx) * ty], [1, 1, tx * ty]]) {
+    const c = c0 + dc, f = f0 + df;
+    if (c < 0 || f < 0 || c >= 256 || f >= 256 || !Number.isFinite(campo.distancia[f * 256 + c])) continue;
+    dx += DIRX[f * 256 + c] * w; dy += DIRY[f * 256 + c] * w; peso += w;
+  }
+  const l = Math.hypot(dx, dy);
+  return peso > 0 && l > 1e-6 ? [dx / l, dy / l] : [0, 0];
+}
 const N = 5000, tile = 1, vel = 4, acel = 20, radio = 0.6, sep = 2, LLEGADA = 3;
 const X = new Float32Array(N), Y = new Float32Array(N), VX = new Float32Array(N), VY = new Float32Array(N);
 for (let i = 0; i < N; i++) { X[i] = f(1, 255); Y[i] = f(1, 255); }
@@ -65,7 +78,7 @@ function paso(dt: number): void {
     const px = X[i], py = Y[i];
     const c = Math.floor(px / tile), r = Math.floor(py / tile);
     const dentro = c >= 0 && r >= 0 && c < 256 && r < 256;
-    let [dx, dy] = dentro ? campo.direccion(c, r) : [0, 0];
+    let [dx, dy] = dentro ? direccionSuave(px / tile, py / tile) : [0, 0];
     const lleg = dentro ? Math.min(1, Math.max(0, campo.distancia[r * 256 + c] / LLEGADA)) : 1;
     dx *= vel * lleg; dy *= vel * lleg;
     const gc = Math.floor((px - x0) / radio), gf = Math.floor((py - y0) / radio);

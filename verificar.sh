@@ -27,6 +27,13 @@ else
   echo "(cargo no está instalado: se saltan Rust y shaders)"
 fi
 
+if command -v cargo >/dev/null && [ -n "${GODOT:-}" ]; then
+  paso "Godot: GDExtension (GODOT=ruta al ejecutable de Godot 4.5+)"
+  (cd rust/godot && ./construir.sh >/dev/null && "$GODOT" --headless --path demo --script res://prueba.gd) || fallos=$((fallos + 1))
+else
+  echo "(definí GODOT=ruta/a/godot para probar la GDExtension de rust/godot)"
+fi
+
 if command -v python >/dev/null || command -v python3 >/dev/null; then
   paso "Python: pruebas contra los vectores"
   (cd python && "$(command -v python || command -v python3)" -I pruebas/test_herramientas.py) || fallos=$((fallos + 1))

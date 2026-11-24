@@ -139,6 +139,7 @@ ludokit/
 │  ├─ grafico/ animacion/ red/ infraestructura/
 ├─ herramientas/         crear.ts (asistente) · indice.ts (genera docs/INDICE.md y docs/catalogo.json)
 ├─ rust/                Núcleo de alto rendimiento + ABI C (include/ludokit.h) + adaptador C# (integraciones/)
+│  └─ godot/            GDExtension para Godot 4 (godot-rust) + proyecto demo
 ├─ cpp/ python/          Ports verificados contra vectores/ (Python también usa el núcleo Rust por ctypes)
 ├─ shaders/              WGSL validados + GLSL generado
 ├─ vectores/             vectores.json (entre lenguajes) · golden.json (estado de simulaciones)
@@ -261,9 +262,12 @@ Misma carga, misma máquina (`node ejemplos/rendimiento.ts` contra `cargo run --
 | Carga | TypeScript | Rust |
 |---|---:|---:|
 | 20 000 rayos contra 2 000 personajes | 2 553 ms | 675 ms con el mismo algoritmo · **23,5 ms con grilla + DDA** (108×) |
-| Campo de flujo 256×256 ×20 | 646 ms | 125 ms (5×) |
-| Horda de 50 000 agentes, por paso | — | 12,6 ms con 1 hilo · **4,2 ms con 24 hilos** (idéntico bit a bit) |
+| Campo de flujo 256×256 ×20 | 651 ms | 168 ms (3,9×) |
+| Horda de 50 000 agentes, por paso | — | 11,9 ms con 1 hilo · **4,2 ms con 24 hilos** (idéntico bit a bit) |
 | Niebla de guerra 256×256, 100 fuentes ×30 | 62 ms | 23 ms (2,7×) |
+
+**Godot 4 (GDScript)**: extensión nativa lista en [`rust/godot/`](rust/godot/LEEME.md) (`LudoEscena3D`, `LudoHorda`,
+`LudoNiebla`, `LudoCurva`), probada en Godot 4.7.2 con una demo de 6 000 zombis a 60 FPS.
 
 Qué mover a Rust y qué no, patrones (SoA, grilla por conteo, DDA, cero asignaciones, hilos deterministas) y cómo
 usarlo desde Unity, Godot, Unreal, C, Python y la web: **[docs/RUST.md](docs/RUST.md)**.

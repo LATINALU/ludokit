@@ -1,0 +1,10 @@
+; Proyecto demo de ludokit para Godot 4 (GDExtension en Rust).
+config_version=5
+
+[application]
+config/name="ludokit demo"
+run/main_scene="res://horda.tscn"
+config/features=PackedStringArray("4.5")
+
+[physics]
+common/physics_ticks_per_second=60

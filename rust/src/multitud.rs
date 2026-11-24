@@ -30,6 +30,8 @@ pub struct CampoFlujo {
     pub cols: i32,
     pub filas: i32,
     pub distancia: Vec<f32>,
+    /// Dirección precalculada de cada celda (se llena al final de `calcular`): leerla es O(1).
+    pub direcciones: Vec<(f32, f32)>,
     heap: BinaryHeap<Abierto>,
 }
 
@@ -37,7 +39,8 @@ const VECINOS: [(i32, i32); 8] = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, 
 
 impl CampoFlujo {
     pub fn nuevo(cols: i32, filas: i32) -> Self {
-        CampoFlujo { cols, filas, distancia: vec![f32::INFINITY; (cols * filas) as usize], heap: BinaryHeap::new() }
+        let n = (cols * filas) as usize;
+        CampoFlujo { cols, filas, distancia: vec![f32::INFINITY; n], direcciones: vec![(0.0, 0.0); n], heap: BinaryHeap::new() }
     }
 
     /// `costo(c, f)`: ≤ 0 o infinito = bloqueada. Mismos resultados que la versión TypeScript.
@@ -82,10 +85,46 @@ impl CampoFlujo {
                 }
             }
         }
+        // Precalcular la dirección de cada celda: los agentes la leen miles de veces por paso.
+        for f in 0..self.filas {
+            for c in 0..self.cols {
+                let d = self.direccion_calculada(c, f);
+                self.direcciones[(f * self.cols + c) as usize] = d;
+            }
+        }
     }
 
-    /// Dirección normalizada hacia la vecina de menor distancia; (0,0) si no hay camino.
+    /// Dirección CONTINUA en una posición del mundo (en celdas): mezcla bilineal de las direcciones de las 4 celdas
+    /// más cercanas. Evita que todos los agentes de una celda vayan exactamente igual (filas y "carriles" visibles).
+    pub fn direccion_suave(&self, x: f32, y: f32) -> (f32, f32) {
+        let (fx, fy) = (x - 0.5, y - 0.5);
+        let (c0, f0) = (fx.floor() as i32, fy.floor() as i32);
+        let (tx, ty) = (fx - c0 as f32, fy - f0 as f32);
+        let (mut dx, mut dy, mut peso) = (0.0f32, 0.0f32, 0.0f32);
+        for (dc, df, w) in [(0, 0, (1.0 - tx) * (1.0 - ty)), (1, 0, tx * (1.0 - ty)), (0, 1, (1.0 - tx) * ty), (1, 1, tx * ty)] {
+            let (c, f) = (c0 + dc, f0 + df);
+            if c < 0 || f < 0 || c >= self.cols || f >= self.filas || !self.distancia[(f * self.cols + c) as usize].is_finite() {
+                continue;
+            }
+            let (a, b) = self.direccion(c, f);
+            dx += a * w;
+            dy += b * w;
+            peso += w;
+        }
+        if peso <= 0.0 {
+            return (0.0, 0.0);
+        }
+        let l = (dx * dx + dy * dy).sqrt();
+        if l > 1e-6 { (dx / l, dy / l) } else { (0.0, 0.0) }
+    }
+
+    /// Dirección normalizada hacia la vecina de menor distancia; (0,0) si no hay camino (precalculada).
+    #[inline]
     pub fn direccion(&self, c: i32, f: i32) -> (f32, f32) {
+        self.direcciones[(f * self.cols + c) as usize]
+    }
+
+    fn direccion_calculada(&self, c: i32, f: i32) -> (f32, f32) {
         let mut mejor = self.distancia[(f * self.cols + c) as usize];
         let (mut dx, mut dy) = (0i32, 0i32);
         for ff in -1..=1 {
@@ -299,7 +338,7 @@ impl Lectura<'_> {
         let (px, py) = (m.x[i], m.y[i]);
         let (c, f) = ((px / tile).floor() as i32, (py / tile).floor() as i32);
         let dentro = c >= 0 && f >= 0 && c < campo.cols && f < campo.filas;
-        let (mut dx, mut dy) = if dentro { campo.direccion(c, f) } else { (0.0, 0.0) };
+        let (mut dx, mut dy) = if dentro { campo.direccion_suave(px / tile, py / tile) } else { (0.0, 0.0) };
         // Llegada: frenar en las últimas celdas para no apilarse sobre el objetivo.
         let llegada = if dentro { (campo.distancia[(f * campo.cols + c) as usize] / LLEGADA).clamp(0.0, 1.0) } else { 1.0 };
         dx *= velocidad * llegada;

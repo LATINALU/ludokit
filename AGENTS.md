@@ -42,6 +42,8 @@ Requiere Node ≥ 23.6 (ejecuta `.ts` directo, sin compilar).
 - `src/modelos` 58 modelos combinables, `combinar`, asistente (`PREGUNTAS`, `recomendar`, `planDeImplementacion`).
 - `src/datos` catálogos propios: armas, vehículos, criaturas, rpg.
 - `rust/` núcleo de ALTO RENDIMIENTO (rayos 3D con grilla, hordas paralelas, niebla, balística) + ABI C
-  (`include/ludokit.h`, `src/ffi.rs`) + adaptador C# para Unity/Godot. Cuándo usarlo: `docs/RUST.md`.
+  (`include/ludokit.h`, `src/ffi.rs`) + adaptador C# para Unity/Godot + **GDExtension para Godot 4**
+  (`rust/godot/`, `./construir.sh`, prueba: `godot --headless --path rust/godot/demo --script res://prueba.gd`).
+  Cuándo usarlo: `docs/RUST.md`.
 - `python/`, `cpp/` ports verificados contra `vectores/vectores.json`.
 - Referencias: `docs/SHOOTER-3D.md` (pedido más común), `docs/MOTORES.md` (Unity/Godot/Unreal).

@@ -48,7 +48,7 @@ extensión; en iOS, biblioteca estática y `[DllImport("__Internal")]`. Adaptado
 |---|---|
 | `BucleFijo` | `_physics_process(delta)` (Physics Ticks per Second = 60) |
 | `Controlador3D` | Alternativa determinista a `CharacterBody3D.move_and_slide()`: o usar `move_and_slide` para colisiones del mundo y las reglas de ludokit (coyote, búfer, aceleración, deslizar) para calcular `velocity` |
-| `Escena3D` / `Multitud` (Rust) | **C#**: el mismo `LudokitNativo.cs`. **GDScript**: una GDExtension con godot-rust (`gdext`): una clase `#[derive(GodotClass)]` que envuelve `ludokit::multitud::Multitud` y expone `paso(dt)` y un `PackedVector2Array` de posiciones para un `MultiMeshInstance3D` |
+| `Escena3D` / `Multitud` (Rust) | **GDScript**: la **GDExtension de `rust/godot/`** (`LudoEscena3D`, `LudoHorda`, `LudoNiebla`, `LudoCurva`; guía en `rust/godot/LEEME.md`, demo con 6 000 zombis en un `MultiMesh`). **C#**: el mismo `LudokitNativo.cs` |
 | `feedback` | Un nodo autoload que traduce órdenes a `GPUParticles3D.restart()`, `AudioStreamPlayer3D`, sacudida de `Camera3D` |
 | `red` | `MultiplayerAPI`/ENet como transporte; la autoridad y la predicción las pone `red` |
 

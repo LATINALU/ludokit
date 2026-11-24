@@ -229,7 +229,8 @@ rebobinado, hordas de miles, niebla de RTS, pathfinding masivo, simulación de s
 el núcleo Rust: `rust/src/colision3d.rs` (`Escena3D`: 108× más rápido que la búsqueda lineal en TS),
 `multitud.rs` (`Multitud::paso_paralelo`, determinista), `niebla.rs`, `balistica.rs`. Desde Unity/Godot C#:
 `rust/integraciones/csharp/LudokitNativo.cs`; desde C/C++/Unreal: `rust/include/ludokit.h`; desde Python:
-`ludokit_herramientas.nativo`. **Una llamada por lote**, nunca una por entidad. Lo que cambia seguido (reglas de
+`ludokit_herramientas.nativo`; desde GDScript: la GDExtension `rust/godot/` (`LudoHorda`, `LudoEscena3D`,
+`LudoNiebla`, `LudoCurva`). **Una llamada por lote**, nunca una por entidad. Lo que cambia seguido (reglas de
 diseño) se queda en TypeScript/C#.
 
 Para pedidos de "un shooter 3D", seguir `docs/SHOOTER-3D.md` (sistemas, orden de construcción, red con fuentes).

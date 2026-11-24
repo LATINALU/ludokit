@@ -20,6 +20,12 @@ if (Get-Command cargo -ErrorAction SilentlyContinue) {
   Push-Location shaders/compilador; cargo run --quiet --release -- (Get-ChildItem ../*.wgsl | ForEach-Object { $_.FullName }); if ($LASTEXITCODE -ne 0) { $fallos++ }; Pop-Location
 } else { Write-Host "(cargo no está instalado: se saltan Rust y shaders)" }
 
+if ((Get-Command cargo -ErrorAction SilentlyContinue) -and $env:GODOT) {
+  Paso "Godot: GDExtension (GODOT=ruta al ejecutable de Godot 4.5+)"
+  & "$PSScriptRoot/rust/godot/construir.ps1" | Out-Null
+  & $env:GODOT --headless --path "$PSScriptRoot/rust/godot/demo" --script res://prueba.gd; if ($LASTEXITCODE -ne 0) { $fallos++ }
+} else { Write-Host "(definí `$env:GODOT con la ruta a Godot para probar la GDExtension de rust/godot)" }
+
 if (Get-Command python -ErrorAction SilentlyContinue) {
   Paso "Python: pruebas contra los vectores"
   Push-Location python; python -I pruebas/test_herramientas.py; if ($LASTEXITCODE -ne 0) { $fallos++ }; Pop-Location

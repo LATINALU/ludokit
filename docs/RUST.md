@@ -15,17 +15,17 @@ proporción se mantiene.
 |---|---:|---:|---:|---|
 | 20 000 rayos contra 2 000 personajes, **mismo algoritmo** (búsqueda lineal) | 2 553 ms | 675 ms | **3,8×** | `f32` contiguo, sin objetos ni recolector, inlining |
 | Los mismos rayos con **grilla + DDA 3D** (`Escena3D`) | — | **23,5 ms** | **108×** vs TS | Algoritmo + memoria: cada rayo prueba solo las celdas que cruza |
-| Campo de flujo 256×256, 20 recálculos | 646 ms | 125 ms | **5,2×** | Montículo sin asignaciones, arreglos planos |
-| Horda de 5 000 agentes × 300 pasos (mismo algoritmo, `Float32Array` en TS) | 770 ms | 381 ms | **2×** | V8 optimiza muy bien arreglos tipados: acá la ventaja de Rust es menor |
-| Horda de **50 000** agentes × 60 pasos, 1 hilo | — | 758 ms (12,6 ms/paso) | — | No entra en un tick de 60 Hz (16,6 ms) con margen |
-| Horda de **50 000** agentes × 60 pasos, 24 hilos (`paso_paralelo`) | — | **255 ms (4,2 ms/paso)** | **3×** vs 1 hilo | Hilos sin copiar memoria y **resultado idéntico bit a bit** |
+| Campo de flujo 256×256, 20 recálculos (Rust incluye precalcular la dirección de cada celda) | 651 ms | 168 ms | **3,9×** | Montículo sin asignaciones, arreglos planos |
+| Horda de 5 000 agentes × 300 pasos (mismo algoritmo: dirección suave bilineal, `Float32Array` en TS) | 907 ms | 362 ms | **2,5×** | V8 optimiza bien arreglos tipados: acá la ventaja de Rust es menor |
+| Horda de **50 000** agentes × 60 pasos, 1 hilo | — | 714 ms (11,9 ms/paso) | — | No entra en un tick de 60 Hz (16,6 ms) con margen |
+| Horda de **50 000** agentes × 60 pasos, 24 hilos (`paso_paralelo`) | — | **253 ms (4,2 ms/paso)** | **2,8×** vs 1 hilo | Hilos sin copiar memoria y **resultado idéntico bit a bit** |
 | Niebla de guerra 256×256, 100 fuentes × 30 | 62 ms | 23 ms | **2,7×** | Bresenham sobre bytes |
 
 Lecciones de los números (también son reglas de diseño):
 
 1. **El mayor salto viene del algoritmo + la memoria** (108× en rayos), no solo del lenguaje (3,8×). Rust hace fácil
    escribir estructuras planas sin asignaciones; ahí está la ganancia grande.
-2. **JavaScript moderno es rápido con arreglos tipados** (la horda en TS es solo 2× más lenta). Si tu cuello de
+2. **JavaScript moderno es rápido con arreglos tipados** (la horda en TS es solo 2,5× más lenta). Si tu cuello de
    botella ya es un bucle sobre `Float32Array`, Rust no es magia: ganás con hilos.
 3. **Hilos: solo con carga suficiente.** Con 5 000 agentes, 24 hilos creados en cada paso eran *más lentos* que uno
    (808 ms contra 384). Por eso `paso_paralelo` usa un mínimo de 4 096 agentes por hilo (`MIN_POR_HILO`) y, por
@@ -76,7 +76,7 @@ cargo run --release --example rendimiento
 | **Rust** (servidor dedicado, motor propio, Bevy) | `ludokit = { path = "…/rust" }` en Cargo.toml | `rust/src/lib.rs` |
 | **Unity** (C#) | Plug-in nativo: la biblioteca en `Assets/Plugins/<plataforma>/` + `[DllImport]` (iOS: `__Internal`) | `rust/integraciones/csharp/LudokitNativo.cs` (verificado con .NET 8) |
 | **Godot 4** (C#) | El mismo archivo C# | ídem |
-| **Godot 4** (GDScript) | Envolver en una GDExtension con el crate `godot` (godot-rust/gdext) y exponer `Escena3D`/`Multitud` como clases | ver docs/MOTORES.md |
+| **Godot 4** (GDScript) | **GDExtension lista**: `LudoEscena3D`, `LudoHorda` (con `escribir_multimesh`), `LudoNiebla`, `LudoCurva` | `rust/godot/` (probada en Godot 4.7.2: 12 comprobaciones + demo visual) |
 | **Unreal** (C++) | Módulo con `PublicAdditionalLibraries` apuntando a la biblioteca e `#include "ludokit.h"` | `rust/include/ludokit.h` |
 | **C / C++** | `#include "ludokit.h"` y enlazar | ídem |
 | **Python** (herramientas) | `ctypes`, sin dependencias | `python/ludokit_herramientas/nativo.py` (con prueba) |
