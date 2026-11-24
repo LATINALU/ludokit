@@ -1,6 +1,6 @@
 // Riesgo y extracción (roguelite de extracción, ARPG hardcore, souls-like):
 //   - Lo que llevás encima en una incursión SE ARRIESGA; lo depositado en la base (bóveda, banco) está a salvo.
-//   - Al morir queda un LEGADO (eco, fantasma, tumba) en ese nivel con todo lo que llevabas. Vencerlo/tocarlo
+//   - Al morir queda un LEGADO (fantasma, tumba, cadáver) en ese nivel con todo lo que llevabas. Vencerlo/tocarlo
 //     devuelve el botín exacto. Morir de nuevo en ese nivel antes de recuperarlo lo reemplaza (el viejo se pierde).
 //   - Máximo de legados vivos a la vez (el más viejo se pierde).
 //   - Modo infinito: la salida es cada vez más rara con la profundidad, con PIEDAD (garantizada tras N niveles).
@@ -11,7 +11,7 @@ export interface Legado<B> {
   readonly uid: string;
   readonly nivel: number;
   readonly botin: B;
-  /** Instantánea del personaje (para que el eco pelee como él): stats, equipo visible, nombre. */
+  /** Instantánea del personaje (para que el legado pelee como él): stats, equipo visible, nombre. */
   readonly forma: Readonly<Record<string, unknown>>;
   readonly causa: string;
   readonly numero: number;
@@ -66,8 +66,8 @@ export class RegistroLegados<B> {
   }
 }
 
-/** Vida de un eco: al menos la de un jefe del nivel × factor, o la del jugador × multiplicador (lo mayor). */
-export const vidaDeLegado = (vidaJefeNivel: number, vidaJugador: number, factorJefe = 0.8, multJugador = 2.6): number => Math.max(vidaJefeNivel * factorJefe, vidaJugador * multJugador);
+/** Vida de un legado que pelea: lo mayor entre vida del jefe del nivel × factor y vida del jugador × multiplicador. */
+export const vidaDeLegado = (vidaJefeNivel: number, vidaJugador: number, factorJefe: number, multJugador: number): number => Math.max(vidaJefeNivel * factorJefe, vidaJugador * multJugador);
 
 export interface ReglasInfinito {
   readonly probBase: number;
@@ -79,19 +79,18 @@ export interface ReglasInfinito {
   readonly jefeCada: number;
 }
 
-export const REGLAS_INFINITO: ReglasInfinito = { probBase: 0.55, caidaPorNivel: 0.012, probMin: 0.18, piedad: 3, jefeCada: 5 };
 
-export const probSalida = (profundidad: number, r: ReglasInfinito = REGLAS_INFINITO): number => Math.max(r.probMin, r.probBase - profundidad * r.caidaPorNivel);
+export const probSalida = (profundidad: number, r: ReglasInfinito): number => Math.max(r.probMin, r.probBase - profundidad * r.caidaPorNivel);
 
 /** ¿Este nivel del modo infinito tiene salida? Lleva el contador de piedad. */
-export function haySalida(azar: Azar, profundidad: number, estado: { sinSalida: number }, r: ReglasInfinito = REGLAS_INFINITO): boolean {
+export function haySalida(azar: Azar, profundidad: number, estado: { sinSalida: number }, r: ReglasInfinito): boolean {
   const hay = estado.sinSalida >= r.piedad || azar.siguiente() < probSalida(profundidad, r);
   estado.sinSalida = hay ? 0 : estado.sinSalida + 1;
   return hay;
 }
 
 /** Niveles desde los que se puede empezar: 1 y cada uno posterior a un jefe vencido. */
-export function iniciosDisponibles(mejorProfundidad: number, r: ReglasInfinito = REGLAS_INFINITO): number[] {
+export function iniciosDisponibles(mejorProfundidad: number, r: ReglasInfinito): number[] {
   const r2 = [1];
   for (let p = r.jefeCada + 1; p <= mejorProfundidad + 1; p += r.jefeCada) r2.push(p);
   return r2;

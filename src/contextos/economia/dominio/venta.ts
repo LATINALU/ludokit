@@ -1,22 +1,21 @@
-// Venta a un comerciante: precio = precio de tienda / divisor (por defecto 10), por unidad. Es una FUENTE de
+// Venta a un comerciante: precio = precio de tienda / divisor (lo fija cada juego), por unidad. Es una FUENTE de
 // moneda, así que su divisor fija cuánto vale el botín en la economía.
 
 export interface DatosVenta {
-  /** PRICE del objeto (precio en la tienda NPC). */
+  /** Precio del objeto en la tienda NPC. */
   readonly precio: number;
   readonly vendible: boolean;
   /** Objetos con vencimiento no se venden. */
   readonly temporal?: boolean;
-  /** SELL_COUNT: cuántas unidades forman el "lote" que vale precio/divisor. */
+  /** Cuántas unidades forman el "lote" que vale precio/divisor. */
   readonly loteVenta?: number;
-  /** MAX_ITEM_COUNT. */
+  /** Tamaño máximo de pila. */
   readonly maxPila: number;
 }
 
-export const DIVISOR_VENTA_ESTANDAR = 10;
 
 /** Oro que recibe el jugador por vender `cantidad` unidades. 0 = no se puede vender. */
-export function precioDeVenta(d: DatosVenta, cantidad: number, divisor = DIVISOR_VENTA_ESTANDAR): number {
+export function precioDeVenta(d: DatosVenta, cantidad: number, divisor: number): number {
   if (!d.vendible || d.temporal === true || cantidad < 1) {
     return 0;
   }

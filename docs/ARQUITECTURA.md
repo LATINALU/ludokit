@@ -27,24 +27,38 @@ no conoce el combate. La infraestructura implementa interfaces (puertos) que dec
 
 | Contexto | Agregados / servicios principales | Lenguaje propio |
 |---|---|---|
-| `fisica` | `Grilla`, `Cuerpo`, `mover`, `Plataformero`, `MovilSuperior`, `Proyectil`, perfiles | celda, plataforma, coyote, búfer, ímpetu, cornisa |
+| `fisica` | `Grilla`, `Cuerpo`, `mover`, `Plataformero`, `MovilSuperior`, `Proyectil`, perfiles, `Controlador3D` | celda, plataforma, coyote, búfer, ímpetu, cornisa, strafe, pendiente |
 | `navegacion` | `aEstrella`, `grafoGrilla`, `CampoFlujo`, suavizado | grafo, heurística, campo |
 | `ia` | árbol de comportamiento, IA por utilidad, steering, `AtaquePorFases` | nodo, pizarra, consideración, fase |
-| `combate` | `Atributos` + `Recurso`, `calcularDanio`, `Habilidades`, `TablaAmenaza`, `GestorEstados`, `GestorBuffs`, `MedidorEstilo`, afijos | modificador, mitigación, recarga, amenaza, pila |
-| `encuentros` | `CerebroJefe`, `EncuentroOleadas`, `premioEncuentro` | repertorio, fase, aviso, oleada, sello, racha |
+| `combate` | `Atributos` + `Recurso`, `calcularDanio`, `Habilidades`, `TablaAmenaza`, `GestorEstados`, `GestorBuffs`, `MedidorEstilo`, afijos, `Lanzador`, recursos (maná, furia, estamina, cargas), `RendimientosDecrecientes`, `elegirObjetivo` | modificador, mitigación, recarga, amenaza, pila, casteo, GCD, escuela, tenacidad |
+| `disparos` | `Arma`, `Dispersion`, `Retroceso`, `asistirMira`, `resolverDisparo`, `resolverBlindaje`, proyectil 3D, `SaludPorPartes` | cadencia, recámara, bloom, patrón, zona, penetración, clase, sangrado |
+| `encuentros` | `CerebroJefe`, `EncuentroOleadas`, `premioEncuentro`, `Director` | repertorio, fase, aviso, oleada, sello, racha, intensidad, presupuesto |
 | `audio` | síntesis por recetas, `BancoSonidos`, `DirectorMusical` | material, fuerza, capa, compás, energía |
-| `balance` | `poderEsperado`, `enemigoEsperado`, `jefeEsperado`, `simularPelea` | poder esperado, golpes para matar/morir |
+| `balance` | `ModeloBalance` (curvas sin tope), `simularPelea`, `NivelesDificultad`, `escalarAlJugador`, `DificultadAdaptativa` | poder esperado, golpes para matar/morir, dificultad infinita |
 | `botin` | tablas de drop (3 modos), rareza por nivel, `generarPieza`, fichas | ficha, rareza mínima, tirada, perfección |
 | `coleccion` | cartas (rareza, fusión, mejora), `abrirConPiedad` | estrella, fusión, piedad, cuota |
 | `inventario` | `Inventario`, vencimiento/suscripciones, cajas | pestaña, casilla, pila |
 | `economia` | `Billetera`, `Catalogo`/`comprar`, venta, comercio, subasta, **caso `casoComprar`** | moneda, medio de pago, ledger |
-| `progresion` | curva de niveles, recompensas, misiones, puntos de habilidad, `ArbolTalentos` | umbral, premio, senda |
+| `progresion` | curvas de nivel (con tope o infinitas), recompensas, misiones, puntos de habilidad, `ArbolTalentos`, `Paragon`, `Descanso`, `Maestria`, `Reputacion`, `PaseTemporada` | umbral, premio, senda, paragon, facción, carril |
 | `mundo` | ruido, `generarMazmorra` (llave/cerradura), `construirSala`, cuevas, **caso `generarNivel`** | sala, conexión, cerradura, llave |
 | `roguelite` | `RegistroLegados`, modo infinito con piedad, **casos de muerte/recuperación** | incursión, legado, extracción |
 | `narrativa` | `Dialogo` con condiciones, efectos e interpolación | nodo, opción, condición, efecto |
 | `feel` | `DirectorImpacto`, muelles, `Elastico`, `Cuerda`, `Campos`, `Particulas` | hitstop, trauma, squash & stretch |
 | `social` | gremios, correo con adjuntos | rango, buzón |
-| `competitivo` | ranking con temporadas + Elo, salas y emparejador | puesto, temporada, cola |
+| `competitivo` | ranking con temporadas + Elo, salas y emparejador, `PuntoCaptura`, `Marcador`, `ZonaSegura`, `Reapariciones` | puesto, temporada, cola, captura, ticket, zona |
+| `moba` | `GeneradorCarriles`, `Estructura`, oro y experiencia, reaparición, rangos | carril, oleada, súbdito, último golpe, recompensa por racha |
+| `vision` | `NieblaGuerra`, `enConoDeVision`, `Sospecha`, `propagarRuido` | explorado, visible, sospecha, alerta |
+| `grupo` | `Grupo`, `armarGrupos`, reparto de botín, `Bloqueos`, `Contribucion` | rol, necesidad, codicia, bloqueo |
+| `supervivencia` | `Necesidades`, temperatura, `Durabilidad`, `NodoRecoleccion`, `CicloDia`, `Infeccion` | umbral, desgaste, nodo, fase del día |
+| `turnos` | `ordenIniciativa`, `ColaTiempo`, `PuntosAccion`, `alcanceGrilla`, `probImpactoTactico` | iniciativa, carga, PA, cobertura, flanqueo |
+| `mazo` | `Mazo`, curva de costos, probabilidad de robo | robo, mano, descarte, agotar, energía |
+| `estrategia` | selección, formaciones, `ColaProduccion`, `Recolector`, `CuadriculaConstruccion`, economía TD | formación, población, recolector, interés |
+| `carreras` | `Vehiculo`, `Carrera`, `Fantasma`, `rubberBanding` | par, marcha, deslizamiento, control, vuelta |
+| `feedback` | `TraductorFeedback`, estilos, normalizadores | evento, intensidad, orden, estilo |
+
+Encima del dominio, sin que el dominio los conozca: `modelos/` (58 modelos combinables, piezas de reglas,
+asistente) y `datos/` (catálogos propios). Un test verifica que ningún archivo de dominio importe de `motor`,
+`grafico`, `red`, `infraestructura`, `modelos` ni `datos`.
 
 ## Principios no negociables
 

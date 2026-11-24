@@ -1,0 +1,32 @@
+# ludokit
+
+> Librería de mecánicas puras de videojuegos en TypeScript (con ports en Rust, C++ y Python) para cualquier género: RPG de acción, MMO, MOBA, shooters 3D, extracción, supervivencia, zombis, carreras, estrategia, turnos, cartas, plataformas. Reglas deterministas sin gráficos y sin números de ningún juego concreto, curvas de escalado sin tope, 58 modelos de género combinables, un asistente de preguntas que arma la configuración inicial, catálogos de datos propios y un protocolo de feedback para arte y sonido.
+
+Reglas clave: azar (`Pcg32`) y tiempo (`dt`) siempre inyectados; paso fijo de 60 Hz; todo escalado es una `Curva` JSON; el dominio no importa del motor; `Resultado` en lugar de excepciones para casos esperados; servidor autoritativo para recompensas. No inventes APIs: todo lo que existe está en docs/INDICE.md.
+
+## Documentación
+
+- [Manual para IA (de 0 a 100)](docs/IA.md): modelo mental, flujo de trabajo, recetas por género, feedback, red, errores típicos
+- [Instrucciones para agentes](AGENTS.md): comandos y reglas no negociables
+- [Índice completo](docs/INDICE.md): cada espacio de nombres, archivo y exportación (generado desde el código)
+- [Catálogo en datos](docs/catalogo.json): el índice en JSON, más modelos, preguntas y catálogos de datos
+- [Arquitectura](docs/ARQUITECTURA.md): capas DDD y contextos
+- [Determinismo](docs/DETERMINISMO.md): golden master, tolerancias entre lenguajes
+- [Rust](docs/RUST.md): núcleo de alto rendimiento, benchmarks medidos, qué mover a Rust, ABI C para Unity/Godot/Unreal
+- [Shooter 3D](docs/SHOOTER-3D.md): cómo se construye un shooter 3D (sistemas, red, orden), con fuentes
+- [Motores](docs/MOTORES.md): integración con Unity, Godot y Unreal
+- [Guía de implementación](docs/GUIA-IMPLEMENTACION.md) y [Lenguajes](docs/LENGUAJES.md)
+
+## Código de entrada
+
+- [src/index.ts](src/index.ts): espacios de nombres exportados
+- [src/modelos/catalogo.ts](src/modelos/catalogo.ts): los 58 modelos
+- [src/modelos/asistente.ts](src/modelos/asistente.ts): preguntas, `recomendar`, `planDeImplementacion`
+- [src/nucleo/escalado.ts](src/nucleo/escalado.ts): curvas
+- [ejemplos/shooter3d.ts](ejemplos/shooter3d.ts): shooter 3D táctico completo sin ventana
+- [rust/src/lib.rs](rust/src/lib.rs) y [rust/include/ludokit.h](rust/include/ludokit.h): núcleo Rust y su ABI C
+
+## Opcional
+
+- [README](README.md)
+- [Licencia LLVA 1.0](LICENSE)

@@ -29,13 +29,13 @@ test("VIP: los días se acumulan y la pestaña se abre y cierra", () => {
   const reloj = new RelojManual();
   const vip = new Suscripcion(reloj);
   const inv = new Inventario({ pestanas: 5, casillasPorPestana: 1, maxPila });
-  aplicarVip(inv, vip);
+  aplicarVip(inv, vip, 4, 5);
   assert.equal(inv.pestanasActivas, 4);
   vip.extenderDias(30);
   reloj.avanzar(10 * DIA);
   vip.extenderDias(30);
   assert.equal(vip.restanteMs(), 50 * DIA);
-  aplicarVip(inv, vip);
+  aplicarVip(inv, vip, 4, 5);
   assert.equal(inv.pestanasActivas, 5);
   reloj.avanzar(51 * DIA);
   vip.extenderDias(1);

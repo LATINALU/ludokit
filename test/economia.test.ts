@@ -55,13 +55,13 @@ test("tienda: pagar con objetos (fichas)", () => {
   assert.equal(i.contar(ESPADA), 1);
 });
 
-test("venta: 1/10 del precio repartido por lote, mínimo 1", () => {
-  // Poción: 2000 de precio, SELL_COUNT 20 -> 200/20 = 10 por unidad.
-  assert.equal(precioDeVenta({ precio: 2000, vendible: true, loteVenta: 20, maxPila: 99 }, 7), 70);
-  assert.equal(precioDeVenta({ precio: 50000, vendible: true, maxPila: 1 }, 1), 5000);
-  assert.equal(precioDeVenta({ precio: 30, vendible: true, loteVenta: 20, maxPila: 99 }, 1), 1);
-  assert.equal(precioDeVenta({ precio: 2000, vendible: false, maxPila: 99 }, 1), 0);
-  assert.equal(precioDeVenta({ precio: 2000, vendible: true, temporal: true, maxPila: 1 }, 1), 0);
+test("venta: precio/divisor repartido por lote, mínimo 1", () => {
+  // Poción: 2000 de precio, lote de 20, divisor 10 -> 200/20 = 10 por unidad.
+  assert.equal(precioDeVenta({ precio: 2000, vendible: true, loteVenta: 20, maxPila: 99 }, 7, 10), 70);
+  assert.equal(precioDeVenta({ precio: 50000, vendible: true, maxPila: 1 }, 1, 10), 5000);
+  assert.equal(precioDeVenta({ precio: 30, vendible: true, loteVenta: 20, maxPila: 99 }, 1, 10), 1);
+  assert.equal(precioDeVenta({ precio: 2000, vendible: false, maxPila: 99 }, 1, 10), 0);
+  assert.equal(precioDeVenta({ precio: 2000, vendible: true, temporal: true, maxPila: 1 }, 1, 10), 0);
 });
 
 function dosJugadores() {

@@ -1,5 +1,8 @@
 # Guía de implementación: de un juego de un jugador a un RPG multijugador
 
+> Para empezar un juego nuevo, correr `npm run crear` (asistente de preguntas → modelos combinados → plan). Recetas
+> por género actualizadas (shooter 3D, MOBA, MMO, carreras, supervivencia, zombis...) en [IA.md](IA.md#4-recetas-por-género-qué-clases-usar).
+
 La librería no es un motor que te obliga a un género: es un conjunto de **contextos independientes**. Cada juego toma
 los que necesita y les pone sus datos. Esta guía muestra qué tomar para cada tipo de juego, en qué orden, y el
 código mínimo para arrancar.
@@ -42,7 +45,7 @@ Orden de trabajo recomendado para cualquier proyecto:
 | Control fino | `fisica` | `Plataformero` + `crearPerfil`, `Grilla` |
 | Mundo | `mundo` | `generarNivel` (mazmorra + salas recorribles), o niveles a mano con `Grilla.desdeTexto` |
 | Habilidades que abren caminos | `mundo` | `cerraduras: { cristal: "dash" }`, `llaveAColocar` |
-| Enemigos | `ia`, `balance` | `AtaquePorFases` + `enemigoEsperado(nivel)` |
+| Enemigos | `ia`, `balance` | `AtaquePorFases` + `ModeloBalance.enemigo(nivel)` |
 | Combate | `combate` | `calcularDanio`, `MedidorEstilo` |
 | Sensación | `feel` | `DirectorImpacto`, `Elastico`, `Particulas`, `Cuerda` (capa) |
 | Cámara | `motor` | `Camara` con zona muerta y límites |
@@ -62,7 +65,7 @@ for (const ev of jugador.eventos.vaciar()) if (ev.tipo === "aterrizaje" && ev.ve
 ```
 Ejemplo ejecutable completo: `node ejemplos/plataformas.ts`.
 
-## 2. Roguelike / ARPG de vista superior con botín (Diablo-like)
+## 2. Roguelike / ARPG de vista superior con botín
 
 | Necesidad | Piezas |
 |---|---|

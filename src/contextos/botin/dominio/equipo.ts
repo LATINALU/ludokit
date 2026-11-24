@@ -1,10 +1,12 @@
 // Generador de equipo para juegos de botín (ARPG, looter, RPG): cada pieza tiene clase, nivel, rareza, stats con
 // TIRADA (cada stat sale entre el 50 % y el 100 % de su máximo: la "perfección" de la pieza es la media), afijos
 // extra según la rareza, calidad, mejora (+N), y valor de desguace. Las definiciones son datos: el juego dice qué
-// clases existen y cuánto da cada stat por nivel.
+// clases existen, cuánto da cada stat por nivel y cómo escala (con `Curva`, sin tope de niveles). No hay reglas por
+// defecto: ver `presets/` para puntos de partida por género.
 
 import type { Azar } from "../../../nucleo/azar.ts";
-import { RAREZA_ESTANDAR, tirarRareza, type TablaRarezaNivel } from "./rareza.ts";
+import { tirarRareza, type TablaRarezaNivel } from "./rareza.ts";
+import { evaluar, type Curva } from "../../../nucleo/escalado.ts";
 
 export interface DefClase {
   readonly id: string;
@@ -18,33 +20,30 @@ export interface DefClase {
 
 export interface ReglasEquipo {
   readonly rareza: TablaRarezaNivel;
+  /** Multiplicador de stats por rareza (una entrada por rareza). */
   readonly multRareza: readonly number[];
+  /** Afijos extra por rareza. */
   readonly afijosPorRareza: readonly number[];
+  /** Cada stat sale entre tiradaMin y 1 de su máximo. */
   readonly tiradaMin: number;
   readonly topeBase: number;
   readonly topeAfijo: number;
-  /** Mejora: +X % por grado y grado máximo. */
+  /** Nivel de la pieza según el nivel de la fuente (zona, enemigo, dificultad) y su variación ±. */
+  readonly nivelPieza: Curva;
+  readonly variacionNivel: number;
+  /** Escala de stats según el nivel de la pieza (p. ej. `topeSuave(lineal(1,1), 4, 0.56)`: números chicos). */
+  readonly escala: Curva;
+  /** Mejora: ×multMejora por grado; `mejoraMax` = Infinity para mejora sin tope. */
   readonly multMejora: number;
   readonly mejoraMax: number;
-  /** Escala sublineal del nivel: n ≤ codo → n; si no codo·(n/codo)^exp (números chicos y legibles). */
-  readonly codo: number;
-  readonly expNivel: number;
+  /** Costo de mejora = (base + porNivel·nivel)·(grado+1)·(1 + porRareza·rareza). */
+  readonly costoMejora: { readonly base: number; readonly porNivel: number; readonly porRareza: number };
+  /** Calidad: rango [min, max] y bono por rareza. */
+  readonly calidad?: { readonly min: number; readonly max: number; readonly porRareza: number; readonly tope: number };
+  /** Desguace = (base + porNivel·nivel)·desguace[rareza]. */
   readonly desguace: readonly number[];
+  readonly desguaceBase?: { readonly base: number; readonly porNivel: number };
 }
-
-export const REGLAS_EQUIPO: ReglasEquipo = {
-  rareza: RAREZA_ESTANDAR,
-  multRareza: [1, 1.06, 1.12, 1.19, 1.27, 1.36],
-  afijosPorRareza: [0, 1, 2, 3, 4, 5],
-  tiradaMin: 0.5,
-  topeBase: 1.15,
-  topeAfijo: 0.65,
-  multMejora: 1.05,
-  mejoraMax: 10,
-  codo: 4,
-  expNivel: 0.56,
-  desguace: [1, 2, 3, 5, 8, 12],
-};
 
 export interface Pieza {
   readonly uid: string;
@@ -58,10 +57,7 @@ export interface Pieza {
   mejora: number;
 }
 
-export const escalaNivel = (n: number, r: ReglasEquipo = REGLAS_EQUIPO): number => {
-  const x = Math.max(1, n);
-  return x <= r.codo ? x : r.codo * Math.pow(x / r.codo, r.expNivel);
-};
+export const escalaNivel = (n: number, r: ReglasEquipo): number => evaluar(r.escala, Math.max(1, n));
 
 const redondear = (v: number): number => (Math.abs(v) < 10 ? Math.round(v * 10) / 10 : Math.round(v));
 
@@ -72,8 +68,7 @@ export function uid(azar: Azar): string {
 }
 
 /** Genera una pieza. `nivelFuente`: nivel de la zona; `minima`: rareza mínima de la fuente; `suerte`. */
-export function generarPieza(azar: Azar, clases: readonly DefClase[], nivelFuente: number, op: { minima?: number; suerte?: number; clase?: string; r?: ReglasEquipo } = {}): Pieza {
-  const r = op.r ?? REGLAS_EQUIPO;
+export function generarPieza(azar: Azar, clases: readonly DefClase[], nivelFuente: number, r: ReglasEquipo, op: { minima?: number; suerte?: number; clase?: string } = {}): Pieza {
   const pool = op.clase ? clases.filter((c) => c.id === op.clase) : clases;
   const total = pool.reduce((s, c) => s + (c.peso ?? 1), 0);
   let x = azar.siguiente() * total;
@@ -86,7 +81,8 @@ export function generarPieza(azar: Azar, clases: readonly DefClase[], nivelFuent
     }
   }
   const rareza = Math.min(r.multRareza.length - 1, tirarRareza(azar, r.rareza, nivelFuente, { minima: op.minima, suerte: op.suerte }));
-  const nivel = Math.max(1, nivelFuente * 4 + Math.floor(azar.siguiente() * 4) - 2);
+  const v = r.variacionNivel;
+  const nivel = Math.max(1, Math.round(evaluar(r.nivelPieza, nivelFuente)) + (v > 0 ? Math.floor(azar.siguiente() * (2 * v + 1)) - v : 0));
   const esc = escalaNivel(nivel, r) * r.multRareza[rareza];
   const stats: Record<string, number> = {};
   const tiradas: number[] = [];
@@ -101,23 +97,26 @@ export function generarPieza(azar: Azar, clases: readonly DefClase[], nivelFuent
     const s = disponibles.splice(Math.floor(azar.siguiente() * disponibles.length), 1)[0];
     stats[s] = redondear(def.afijos[s] * esc * r.topeAfijo * tirar());
   }
-  const calidad = Math.min(1.3, Math.round((0.75 + ((azar.siguiente() + azar.siguiente()) / 2) * 0.45 + rareza * 0.02) * 100) / 100);
+  const q = r.calidad ?? { min: 1, max: 1, porRareza: 0, tope: 1 };
+  const calidad = Math.min(q.tope, Math.round((q.min + ((azar.siguiente() + azar.siguiente()) / 2) * (q.max - q.min) + rareza * q.porRareza) * 100) / 100);
   return { uid: uid(azar), clase: def.id, nivel, rareza, stats, tiradas, calidad, mejora: 0 };
 }
 
-/** Perfección 0..1 (media de las tiradas): una pieza perfecta rinde ~1,6× una mala del mismo nivel y rareza. */
+/** Perfección 0..1 (media de las tiradas): con tiradaMin 0,5 una pieza perfecta rinde ~2× una mala. */
 export const perfeccion = (p: Pieza): number => (p.tiradas.length === 0 ? 0 : p.tiradas.reduce((s, t) => s + t, 0) / p.tiradas.length);
 
 /** Mejora +1: cada stat × multMejora (al menos +1 en los enteros). Devuelve una pieza nueva. */
-export function mejorarPieza(p: Pieza, r: ReglasEquipo = REGLAS_EQUIPO): Pieza | null {
+export function mejorarPieza(p: Pieza, r: ReglasEquipo): Pieza | null {
   if (p.mejora >= r.mejoraMax) return null;
   const stats: Record<string, number> = {};
   for (const [k, v] of Object.entries(p.stats)) stats[k] = Math.abs(v) < 10 ? redondear(v * r.multMejora) : Math.max(v + 1, Math.round(v * r.multMejora));
   return { ...p, stats, tiradas: [...p.tiradas], mejora: p.mejora + 1 };
 }
 
-export const costoMejora = (p: Pieza): number => Math.round((40 + p.nivel * 6) * (p.mejora + 1) * (1 + p.rareza * 0.3));
-export const valorDesguace = (p: Pieza, r: ReglasEquipo = REGLAS_EQUIPO): number => (4 + 2 * p.nivel) * r.desguace[p.rareza];
+export const costoMejora = (p: Pieza, r: ReglasEquipo): number =>
+  Math.round((r.costoMejora.base + p.nivel * r.costoMejora.porNivel) * (p.mejora + 1) * (1 + p.rareza * r.costoMejora.porRareza));
+export const valorDesguace = (p: Pieza, r: ReglasEquipo): number =>
+  ((r.desguaceBase?.base ?? 1) + (r.desguaceBase?.porNivel ?? 0) * p.nivel) * (r.desguace[p.rareza] ?? 1);
 
 /** Puntaje para comparar dos piezas con un peso por stat definido por el juego (o 1). */
 export function puntaje(p: Pieza, pesos: Readonly<Record<string, number>> = {}): number {

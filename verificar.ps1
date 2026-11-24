@@ -7,12 +7,15 @@ function Paso($t) { Write-Host ""; Write-Host "== $t" }
 Paso "TypeScript: tipos"
 npx tsc -p tsconfig.json; if ($LASTEXITCODE -ne 0) { $fallos++ }
 
-Paso "TypeScript: pruebas"
+Paso "TypeScript: pruebas (incluye golden master y arquitectura)"
 node --test test/*.test.ts test/*.test.mjs; if ($LASTEXITCODE -ne 0) { $fallos++ }
+
+Paso "Índice: regenerar docs/INDICE.md y docs/catalogo.json"
+node herramientas/indice.ts; if ($LASTEXITCODE -ne 0) { $fallos++ }
 
 if (Get-Command cargo -ErrorAction SilentlyContinue) {
   Paso "Rust: pruebas contra los vectores"
-  Push-Location rust; cargo test --quiet; if ($LASTEXITCODE -ne 0) { $fallos++ }; Pop-Location
+  Push-Location rust; cargo test --quiet; if ($LASTEXITCODE -ne 0) { $fallos++ }; cargo build --release --quiet; if ($LASTEXITCODE -ne 0) { $fallos++ }; Pop-Location
   Paso "Shaders: validar WGSL y generar GLSL"
   Push-Location shaders/compilador; cargo run --quiet --release -- (Get-ChildItem ../*.wgsl | ForEach-Object { $_.FullName }); if ($LASTEXITCODE -ne 0) { $fallos++ }; Pop-Location
 } else { Write-Host "(cargo no está instalado: se saltan Rust y shaders)" }

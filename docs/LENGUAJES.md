@@ -8,7 +8,7 @@ ludokit trae piezas en cinco lenguajes, y cada una está verificada contra `vect
 
 | Carpeta | Lenguaje | Rol en la librería | Verificación |
 |---|---|---|---|
-| `src/` | **TypeScript** | Referencia completa: todas las reglas, el motor de tiempo, el netcode y los casos de uso | 151 tests + chequeo estricto de tipos |
+| `src/` | **TypeScript** | Referencia completa: todas las reglas, el motor de tiempo, el netcode y los casos de uso | 190 tests + chequeo estricto de tipos + golden master |
 | `rust/` | **Rust** | Núcleo de alto rendimiento: azar, física, hash espacial, A*, Verlet, balance, ruido | `cargo test`: idéntico a los vectores |
 | `python/` | **Python** | Herramientas: sprites, validador, balance, catálogo CSV → destinos, diff de datos, medición de hitboxes | 10 tests, idéntico a los vectores |
 | `cpp/` | **C++17** | Núcleo header-only para motores C++ | `pruebas.cpp`: **no se pudo compilar en la máquina de desarrollo**, compilar antes de usar |
@@ -72,3 +72,9 @@ ludokit trae piezas en cinco lenguajes, y cada una está verificada contra `vect
    - desplazamientos: `>>>` sin signo en JS, `>>` sobre `u32` en Rust;
    - números de punto flotante: comparar con tolerancia, nunca con `==` salvo resultados exactos (posiciones en la grilla).
 4. Si se agrega una regla nueva, se suman sus casos a `vectores/generar.ts` y se regenera el archivo.
+
+
+## Núcleo de alto rendimiento en Rust
+
+Qué partes conviene mover a Rust, benchmarks medidos contra TypeScript, patrones (SoA, grilla por conteo, DDA 3D,
+hilos deterministas) y la ABI C para Unity, Godot, Unreal y Python: [RUST.md](RUST.md).

@@ -1,12 +1,14 @@
 {
   "name": "ludokit",
-  "version": "1.0.0",
-  "description": "Librería de dominio para videojuegos (de un jugador a MMO): motor de tiempo, ECS, física 2D, colisiones, navegación, IA, combate RPG, botín, economía, progresión, mundo procedural, game feel, netcode autoritativo y persistencia.",
+  "version": "2.0.0",
+  "description": "Librería de MECÁNICAS de videojuegos para cualquier género (RPG de acción, MMO, MOBA, shooters 3D, extracción, supervivencia, zombis, carreras, estrategia, turnos, cartas, plataformas...): reglas puras sin números de ningún juego, curvas de escalado sin tope, 58 modelos combinables, asistente de preguntas, catálogos de datos propios y netcode.",
   "type": "module",
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
     "./archivos": "./src/infraestructura/persistencia/almacen-archivos.ts",
+    "./modelos": "./src/modelos/index.ts",
+    "./datos": "./src/datos/index.ts",
     "./vfx/*": "./terceros/vfx/*"
   },
   "engines": {
@@ -19,7 +21,13 @@
     "ejemplo:plataformas": "node ejemplos/plataformas.ts",
     "ejemplo:mmo": "node ejemplos/mmo.ts",
     "ejemplo:sonidos": "node ejemplos/sonidos.ts",
-    "verificar": "npm run tipos && npm test"
+    "verificar": "npm run tipos && npm test && npm run indice",
+    "crear": "node herramientas/crear.ts",
+    "indice": "node herramientas/indice.ts",
+    "ejemplo:shooter3d": "node ejemplos/shooter3d.ts",
+    "ejemplo:asistente": "node ejemplos/asistente.ts",
+    "golden": "node vectores/golden.ts",
+    "rendimiento": "node ejemplos/rendimiento.ts"
   },
   "license": "SEE LICENSE IN LICENSE",
   "private": true,

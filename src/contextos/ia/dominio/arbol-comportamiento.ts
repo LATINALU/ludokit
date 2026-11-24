@@ -100,7 +100,8 @@ export function aleatorio<P>(opciones: ReadonlyArray<readonly [Nodo<P>, number]>
     tick(c) {
       if (!actual) {
         const total = opciones.reduce((s, [, w]) => s + w, 0);
-        let r = (c.azar ? c.azar.siguiente() : Math.random()) * total;
+        if (!c.azar) throw new Error("aleatorio(): el contexto necesita un `azar` inyectado (determinismo)");
+        let r = c.azar.siguiente() * total;
         actual = opciones[opciones.length - 1][0];
         for (const [n, w] of opciones) {
           r -= w;

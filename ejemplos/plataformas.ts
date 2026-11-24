@@ -9,7 +9,8 @@ import { Plataformero, type Mando } from "../src/contextos/fisica/index.ts";
 import { generarNivel } from "../src/contextos/mundo/index.ts";
 import { AtaquePorFases, ATAQUES_TIPO } from "../src/contextos/ia/index.ts";
 import { calcularDanio, MedidorEstilo } from "../src/contextos/combate/index.ts";
-import { enemigoEsperado, poderEsperado } from "../src/contextos/balance/index.ts";
+import { ModeloBalance } from "../src/contextos/balance/index.ts";
+import { piezas } from "../src/modelos/index.ts";
 import { DirectorImpacto, Particulas } from "../src/contextos/feel/index.ts";
 import { esSolida } from "../src/contextos/fisica/index.ts";
 
@@ -23,11 +24,12 @@ const entrada = new Entrada();
 const impacto = new DirectorImpacto();
 const particulas = new Particulas(2048);
 const estilo = new MedidorEstilo();
-const pe = poderEsperado(1);
+const balance = new ModeloBalance(piezas.PODER_RPG, piezas.BALANCE_ACCION);
+const pe = balance.poder(1);
 const enemigos = [0, 1, 2].map((i) => ({
   x: 160 + i * 90,
-  vida: enemigoEsperado(1).vida,
-  stats: enemigoEsperado(1),
+  vida: balance.enemigo(1).vida,
+  stats: balance.enemigo(1),
   ia: new AtaquePorFases(ATAQUES_TIPO.medio, azar),
 }));
 let vidaJugador = pe.vida;

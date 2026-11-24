@@ -8,8 +8,11 @@ paso() { echo; echo "== $1"; }
 paso "TypeScript: tipos"
 npx tsc -p tsconfig.json || fallos=$((fallos + 1))
 
-paso "TypeScript: pruebas"
+paso "TypeScript: pruebas (incluye golden master y arquitectura)"
 node --test test/*.test.ts test/*.test.mjs || fallos=$((fallos + 1))
+
+paso "Índice: regenerar docs/INDICE.md y docs/catalogo.json"
+node herramientas/indice.ts || fallos=$((fallos + 1))
 
 paso "Vectores: regenerar y comprobar que no cambiaron"
 cp vectores/vectores.json /tmp/vectores.antes.json 2>/dev/null
@@ -17,7 +20,7 @@ node vectores/generar.ts && (cmp -s vectores/vectores.json /tmp/vectores.antes.j
 
 if command -v cargo >/dev/null; then
   paso "Rust: pruebas contra los vectores"
-  (cd rust && cargo test --quiet) || fallos=$((fallos + 1))
+  (cd rust && cargo test --quiet && cargo build --release --quiet) || fallos=$((fallos + 1))
   paso "Shaders: validar WGSL y generar GLSL"
   (cd shaders/compilador && cargo run --quiet --release -- ../*.wgsl) || fallos=$((fallos + 1))
 else

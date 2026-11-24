@@ -90,7 +90,7 @@ test("legados: reemplazo por nivel, máximo y recuperar botín; salida con pieda
   const est = { sinSalida: 0 };
   let max = 0, seguidas = 0;
   for (let p = 0; p < 300; p++) {
-    seguidas = haySalida(az, 60, est) ? 0 : seguidas + 1;
+    seguidas = haySalida(az, 60, est, { probBase: 0.55, caidaPorNivel: 0.012, probMin: 0.18, piedad: 3, jefeCada: 5 }) ? 0 : seguidas + 1;
     max = Math.max(max, seguidas);
   }
   assert.ok(max <= 3);

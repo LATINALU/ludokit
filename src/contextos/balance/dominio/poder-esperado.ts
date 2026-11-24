@@ -1,28 +1,22 @@
 // Balance por PODER ESPERADO: en vez de poner a mano la vida y el daño de cada enemigo, se define qué poder se
-// espera que tenga el jugador en cada nivel (golpe, vida, defensa) y de ahí se derivan los enemigos por
+// espera que tenga el jugador en cada nivel (golpe, vida, defensa, resistencia) y de ahí se derivan los enemigos por
 // "golpes para matar" (cuántos golpes del jugador aguanta) y "golpes para morir" (cuántos golpes suyos aguanta el
 // jugador). Cambiar la curva del jugador rebalancea TODO el juego de una vez. Los jefes se derivan de una duración
 // objetivo de la pelea. Verificar siempre con el simulador (`simularPelea`).
+//
+// Todo se describe con `Curva` (nucleo/escalado): no hay nivel máximo ni "último piso". Si el juego quiere que el
+// crecimiento se frene después de cierto punto, usa `curva.topeSuave(...)`; si quiere dificultad infinita
+// exponencial, `curva.exponencial(...)`. No hay reglas por defecto: ver `presets/` para puntos de partida.
+
+import { evaluar, type Curva } from "../../../nucleo/escalado.ts";
 
 export interface CurvaPoder {
-  /** Golpe del jugador = golpe·n^expGolpe; vida = vida·n^expVida; defensa = defensa·n^expDefensa. */
-  readonly golpe: number;
-  readonly expGolpe: number;
-  readonly vida: number;
-  readonly expVida: number;
-  readonly defensa: number;
-  readonly expDefensa: number;
-  /** Nivel a partir del cual la curva crece más lento (contenido infinito). */
-  readonly nivelTope: number;
-  readonly expPasado: number;
-  readonly resistenciaPorNivel: number;
-  readonly resistenciaMax: number;
+  readonly golpe: Curva;
+  readonly vida: Curva;
+  readonly defensa: Curva;
+  /** Resistencia 0..1 a todo (recortar con `curva.limitar`). */
+  readonly resistencia: Curva;
 }
-
-export const CURVA_PODER_ESTANDAR: CurvaPoder = {
-  golpe: 30, expGolpe: 0.93, vida: 115, expVida: 0.78, defensa: 12, expDefensa: 0.92,
-  nivelTope: 24, expPasado: 0.8, resistenciaPorNivel: 0.005, resistenciaMax: 0.12,
-};
 
 export interface Poder {
   readonly golpe: number;
@@ -31,55 +25,41 @@ export interface Poder {
   readonly resistencia: number;
 }
 
-export function poderEsperado(nivel: number, c: CurvaPoder = CURVA_PODER_ESTANDAR): Poder {
+export function poderEsperado(c: CurvaPoder, nivel: number): Poder {
   const p = Math.max(1, nivel);
-  const q = Math.min(p, c.nivelTope);
-  const hondo = p > c.nivelTope ? Math.pow(p / c.nivelTope, c.expPasado) : 1;
   return {
-    golpe: c.golpe * Math.pow(q, c.expGolpe) * hondo,
-    vida: c.vida * Math.pow(q, c.expVida) * hondo,
-    defensa: c.defensa * Math.pow(q, c.expDefensa) * (p > c.nivelTope ? p / c.nivelTope : 1),
-    resistencia: Math.min(c.resistenciaMax, c.resistenciaPorNivel * p),
+    golpe: evaluar(c.golpe, p),
+    vida: evaluar(c.vida, p),
+    defensa: evaluar(c.defensa, p),
+    resistencia: Math.min(0.95, Math.max(0, evaluar(c.resistencia, p))),
   };
 }
 
-const mit = (def: number, k: number): number => k / (k + Math.max(0, def));
+export const mitigacionBalance = (def: number, k: number): number => k / (k + Math.max(0, def));
 
 export interface ReglasBalance {
   /** Golpes del jugador que aguanta un enemigo común. */
   readonly golpesParaMatar: number;
   /** Golpes de un común que aguanta el jugador. */
   readonly golpesParaMorir: number;
-  /** k de la defensa de los enemigos. */
+  /** k de la defensa de los enemigos (defensa = k → mitad de daño). */
   readonly kEnemigo: number;
   /** k de la defensa del jugador = max(minimo, factor × defensa esperada): la defensa escala con el nivel. */
   readonly kJugadorFactor: number;
   readonly kJugadorMin: number;
-  /** Defensa de los comunes = base + porNivel × (nivel − 1). */
-  readonly defensaBase: number;
-  readonly defensaPorNivel: number;
+  /** Defensa y experiencia de un enemigo común según el nivel. */
+  readonly defensaEnemigo: Curva;
+  readonly expEnemigo: Curva;
   /** Golpes por segundo que el jugador conecta (para la duración de los jefes). */
   readonly ritmoJugador: number;
-  readonly duracionJefeBase: number;
-  readonly duracionJefePorNivel: number;
-  readonly aguanteJefeInicial: number;
-  readonly aguanteJefeMin: number;
+  /** Segundos que debería durar un jefe según el nivel. */
+  readonly duracionJefe: Curva;
+  /** Golpes del jefe que aguanta el jugador según el nivel. */
+  readonly aguanteJefe: Curva;
+  readonly defensaJefe: Curva;
+  readonly expJefe: Curva;
+  /** Multiplicador de vida del jefe (fases, curaciones, tiempo sin poder pegar). */
   readonly multVidaJefe: number;
-}
-
-export const REGLAS_BALANCE: ReglasBalance = {
-  golpesParaMatar: 6, golpesParaMorir: 11, kEnemigo: 60, kJugadorFactor: 1.5, kJugadorMin: 30,
-  defensaBase: 1, defensaPorNivel: 0.45, ritmoJugador: 2, duracionJefeBase: 48, duracionJefePorNivel: 1.8,
-  aguanteJefeInicial: 7, aguanteJefeMin: 5.5, multVidaJefe: 1.6 * 1.2 * 2,
-};
-
-export const kJugador = (nivel: number, r: ReglasBalance = REGLAS_BALANCE, c: CurvaPoder = CURVA_PODER_ESTANDAR): number =>
-  Math.max(r.kJugadorMin, r.kJugadorFactor * poderEsperado(nivel, c).defensa);
-
-/** Fracción del daño enemigo que le llega al jugador típico de ese nivel. */
-export function pasaAlJugador(nivel: number, r: ReglasBalance = REGLAS_BALANCE, c: CurvaPoder = CURVA_PODER_ESTANDAR): number {
-  const pe = poderEsperado(nivel, c);
-  return mit(pe.defensa, kJugador(nivel, r, c)) * (1 - pe.resistencia);
 }
 
 export interface StatsEnemigo {
@@ -89,41 +69,76 @@ export interface StatsEnemigo {
   readonly exp: number;
 }
 
-/** Enemigo común del nivel, multiplicado por el peso del arquetipo (tanque 1.6 vida, frágil 0.6...). */
-export function enemigoEsperado(nivel: number, pesoVida = 1, pesoAtaque = 1, r: ReglasBalance = REGLAS_BALANCE, c: CurvaPoder = CURVA_PODER_ESTANDAR): StatsEnemigo {
-  const p = Math.max(0, nivel - 1);
-  const pe = poderEsperado(nivel, c);
-  const defensa = r.defensaBase + r.defensaPorNivel * p;
-  const golpeContra = pe.golpe * mit(defensa, r.kEnemigo);
-  return {
-    vida: Math.round(r.golpesParaMatar * golpeContra * pesoVida),
-    ataque: Math.round((pe.vida / (r.golpesParaMorir * pasaAlJugador(nivel, r, c))) * pesoAtaque),
-    defensa: Math.round(defensa),
-    exp: Math.round(1 + 0.8 * p),
-  };
+/**
+ * Modelo de balance: curva del jugador + reglas de derivación. Un objeto por juego (o por modo: normal, difícil,
+ * temporada). Todas las consultas aceptan cualquier nivel ≥ 1.
+ */
+export class ModeloBalance {
+  readonly curva: CurvaPoder;
+  readonly reglas: ReglasBalance;
+
+  constructor(curva: CurvaPoder, reglas: ReglasBalance) {
+    this.curva = curva;
+    this.reglas = reglas;
+  }
+
+  poder(nivel: number): Poder {
+    return poderEsperado(this.curva, nivel);
+  }
+
+  kJugador(nivel: number): number {
+    return Math.max(this.reglas.kJugadorMin, this.reglas.kJugadorFactor * this.poder(nivel).defensa);
+  }
+
+  /** Fracción del daño enemigo que le llega al jugador típico de ese nivel. */
+  pasaAlJugador(nivel: number): number {
+    const pe = this.poder(nivel);
+    return mitigacionBalance(pe.defensa, this.kJugador(nivel)) * (1 - pe.resistencia);
+  }
+
+  /** Enemigo común del nivel, multiplicado por el peso del arquetipo (tanque 1.6 vida, frágil 0.6...). */
+  enemigo(nivel: number, pesoVida = 1, pesoAtaque = 1): StatsEnemigo {
+    const r = this.reglas;
+    const n = Math.max(1, nivel);
+    const pe = this.poder(n);
+    const defensa = evaluar(r.defensaEnemigo, n);
+    const golpeContra = pe.golpe * mitigacionBalance(defensa, r.kEnemigo);
+    return {
+      vida: Math.round(r.golpesParaMatar * golpeContra * pesoVida),
+      ataque: Math.round((pe.vida / (r.golpesParaMorir * this.pasaAlJugador(n))) * pesoAtaque),
+      defensa: Math.round(defensa),
+      exp: Math.round(evaluar(r.expEnemigo, n)),
+    };
+  }
+
+  /** Jefe derivado de una duración objetivo de la pelea y de cuántos golpes suyos aguanta el jugador. */
+  jefe(nivel: number, peso = 1): StatsEnemigo & { duracion: number } {
+    const r = this.reglas;
+    const n = Math.max(1, nivel);
+    const pe = this.poder(n);
+    const defensa = evaluar(r.defensaJefe, n);
+    const duracion = evaluar(r.duracionJefe, n);
+    const aguante = Math.max(1, evaluar(r.aguanteJefe, n));
+    return {
+      vida: Math.round(pe.golpe * mitigacionBalance(defensa, r.kEnemigo) * r.ritmoJugador * duracion * peso * r.multVidaJefe),
+      ataque: Math.round(pe.vida / (aguante * this.pasaAlJugador(n))),
+      defensa: Math.round(defensa),
+      exp: Math.round(evaluar(r.expJefe, n)),
+      duracion,
+    };
+  }
+
+  /** Tabla nivel a nivel (herramientas de diseño, exportar a planilla). */
+  tabla(desde: number, hasta: number): Array<{ nivel: number; jugador: Poder; enemigo: StatsEnemigo; jefe: StatsEnemigo & { duracion: number } }> {
+    const t = [];
+    for (let n = desde; n <= hasta; n++) t.push({ nivel: n, jugador: this.poder(n), enemigo: this.enemigo(n), jefe: this.jefe(n) });
+    return t;
+  }
 }
 
-/** Jefe derivado de una duración objetivo de la pelea y de cuántos golpes suyos aguanta el jugador. */
-export function jefeEsperado(nivel: number, peso = 1, r: ReglasBalance = REGLAS_BALANCE, c: CurvaPoder = CURVA_PODER_ESTANDAR): StatsEnemigo & { duracion: number } {
-  const p = Math.max(1, nivel);
-  const pe = poderEsperado(p, c);
-  const defensa = 6 * (1 + 0.3 * (p - 1));
-  const duracion = r.duracionJefeBase + r.duracionJefePorNivel * p;
-  const aguante = Math.max(r.aguanteJefeMin, r.aguanteJefeInicial - (p - 1) / 6);
-  return {
-    vida: Math.round(pe.golpe * mit(defensa, r.kEnemigo) * r.ritmoJugador * duracion * peso * r.multVidaJefe / 2),
-    ataque: Math.round(pe.vida / (aguante * 1.1 * pasaAlJugador(p, r, c))),
-    defensa: Math.round(defensa),
-    exp: Math.round(120 * (1 + 0.9 * (p - 1))),
-    duracion,
-  };
-}
-
-/** Puntaje de equipo recomendado para entrar a un nivel y veredicto para la interfaz. */
-export const puntajeRequerido = (nivel: number, base = 120, exp = 0.75, tope = 40): number => (nivel <= 1 ? 0 : Math.round(base * Math.pow(Math.min(nivel, tope) - 1, exp)));
-export function veredicto(tengo: number, nivel: number): "listo" | "justo" | "peligroso" {
-  const pide = puntajeRequerido(nivel);
-  return pide <= 0 || tengo >= pide ? "listo" : tengo >= pide * 0.75 ? "justo" : "peligroso";
+/** Puntaje de equipo recomendado para entrar a un nivel (curva del juego) y veredicto para la interfaz. */
+export function veredicto(tengo: number, requerido: number, justo = 0.75): "listo" | "justo" | "peligroso" {
+  return requerido <= 0 || tengo >= requerido ? "listo" : tengo >= requerido * justo ? "justo" : "peligroso";
 }
 
 export interface Peleador {
@@ -137,8 +152,8 @@ export interface Peleador {
 
 /** Simulación "en números" sin azar: cuántos golpes y segundos tarda cada uno en caer. */
 export function simularPelea(a: Peleador, b: Peleador): { golpesAaB: number; golpesBaA: number; segundosA: number; segundosB: number; gana: "a" | "b" } {
-  const danioA = Math.max(1, a.ataque * mit(b.defensa, b.k));
-  const danioB = Math.max(1, b.ataque * mit(a.defensa, a.k));
+  const danioA = Math.max(1, a.ataque * mitigacionBalance(b.defensa, b.k));
+  const danioB = Math.max(1, b.ataque * mitigacionBalance(a.defensa, a.k));
   const golpesAaB = Math.ceil(b.vida / danioA);
   const golpesBaA = Math.ceil(a.vida / danioB);
   const segundosA = golpesAaB / a.ritmo;

@@ -32,7 +32,7 @@ interface Oferta {
 
 export interface OpcionesComercio {
   readonly maxCasillas?: number;
-  /** ENABLE_TRADE del objeto. */
+  /** Si el objeto se puede comerciar. */
   readonly comerciable?: (objeto: number) => boolean;
 }
 

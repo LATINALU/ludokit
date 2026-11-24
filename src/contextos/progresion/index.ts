@@ -5,3 +5,4 @@ export * from "./dominio/misiones.ts";
 export * from "./dominio/niveles.ts";
 export * from "./dominio/recompensas.ts";
 export * from "./dominio/talentos.ts";
+export * from "./dominio/progresion-extendida.ts";

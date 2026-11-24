@@ -80,7 +80,7 @@ export function leerDocumento(texto: string): Documento {
       lista.push(valores);
       actual.campos.set(clave, lista);
     } else if (valores.length === 0) {
-      // "*ITEM_INFO" solo en su línea: el bloque empieza con la próxima '{'.
+      // "*OBJETO" solo en su línea: el bloque empieza con la próxima '{'.
       if (etiquetaPendiente !== null) {
         sueltas.push({ clave: etiquetaPendiente, valores: [] });
       }
@@ -107,7 +107,7 @@ export function numero(b: Bloque, clave: string, defecto = 0): number {
   return Number.isFinite(n) ? n : defecto;
 }
 
-/** Todas las apariciones de una clave repetida (por ejemplo `*DROP_ITEM`). */
+/** Todas las apariciones de una clave repetida (por ejemplo `*BOTIN`). */
 export function todos(b: Bloque, clave: string): readonly (readonly string[])[] {
   return b.campos.get(clave) ?? [];
 }

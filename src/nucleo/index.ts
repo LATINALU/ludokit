@@ -8,3 +8,5 @@ export * from "./resultado.ts";
 export * from "./textos.ts";
 export * from "./datos/bloques.ts";
 export * from "./datos/tabla.ts";
+export * from "./escalado.ts";
+export * from "./vec3.ts";

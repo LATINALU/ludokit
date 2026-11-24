@@ -69,10 +69,7 @@ export class Suscripcion {
   }
 }
 
-/** VIP de ejemplo: 30 días por paquete y una pestaña extra de inventario. */
-export const VIP_ESTANDAR = { diasPorPaquete: 30, pestanasNormales: 4, pestanasVip: 5 } as const;
-
 /** Sincroniza las pestañas del inventario con el estado de la suscripción. */
-export function aplicarVip(inv: Inventario, vip: Suscripcion, normales: number = VIP_ESTANDAR.pestanasNormales, conVip: number = VIP_ESTANDAR.pestanasVip): void {
+export function aplicarVip(inv: Inventario, vip: Suscripcion, normales: number, conVip: number): void {
   inv.cambiarPestanasActivas(vip.activa ? conVip : normales);
 }

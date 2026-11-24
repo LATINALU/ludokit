@@ -1,4 +1,4 @@
-// Pruebas del port C++ contra los vectores compartidos (valores copiados de vectores/vectores.json v1).
+// Pruebas del port C++ contra los vectores compartidos (valores copiados de vectores/vectores.json v2).
 // Compilar:  g++ -std=c++17 -O2 -Wall -Wextra pruebas.cpp -o pruebas && ./pruebas
 //            cl /std:c++17 /EHsc /W4 pruebas.cpp && pruebas.exe
 #include <cstdio>
@@ -26,10 +26,28 @@ int main() {
   }
   VERIFICAR(cerca(mitigacion(120, 60), 0.333333, 1e-5));
   {
-    const Poder p = poderEsperado(12);
-    VERIFICAR(cerca(p.golpe, 302.523986, 1e-6) && cerca(p.vida, 798.838913, 1e-6) && cerca(p.defensa, 118.039672, 1e-6));
-    const StatsEnemigo e = enemigoEsperado(12);
-    VERIFICAR(e.vida == 1651 && e.ataque == 129 && e.defensa == 6 && e.exp == 10);
+    // Modelo de los vectores (modelo_balance): PODER_RPG + BALANCE_ACCION de `modelos/piezas.ts`.
+    using C = Curva;
+    ModeloBalance m{
+      {C::topeSuave(C::potencia(25, 0.95), 50, 0.7), C::topeSuave(C::potencia(110, 0.8), 50, 0.6), C::topeSuave(C::potencia(10, 0.95), 50, 0.8), C::limitar(C::linealC(0, 0.004), 0, 0.15)},
+      {5, 12, 60, 1.5, 30, C::linealC(1, 0.5), C::linealC(2, 1), 2, C::limitar(C::linealC(45, 1.5), 0, 150), C::limitar(C::linealC(8, -0.1), 5, 8), C::linealC(6, 1.5), C::linealC(100, 80), 2},
+    };
+    const Poder p = m.poder(12);
+    VERIFICAR(cerca(p.golpe, 264.948944, 1e-6) && cerca(p.vida, 803.040931, 1e-6) && cerca(p.defensa, 105.979577, 1e-6));
+    const StatsEnemigo e = m.enemigo(12);
+    VERIFICAR(e.vida == 1195 && e.ataque == 117 && e.defensa == 7 && e.exp == 13);
+    double dur = 0;
+    const StatsEnemigo j = m.jefe(12, &dur);
+    VERIFICAR(j.vida == 47402 && j.ataque == 203 && j.defensa == 23 && j.exp == 980 && cerca(dur, 61.5, 1e-9));
+    const StatsEnemigo e300 = m.enemigo(300);
+    VERIFICAR(e300.vida == 5135 && e300.ataque == 1204 && e300.defensa == 151 && e300.exp == 301);
+    const std::vector<double> w = pesosRareza({70, 24, 5, 0.8, 0.15, 0.02}, {30, 34, 22, 9, 3, 0.6}, C::saturacion(30, 1.5), 12);
+    VERIFICAR(cerca(w[0], 62.732482, 1e-5) && cerca(w[5], 0.125379, 1e-5));
+    VERIFICAR(cerca(C::exponencial(1, 1.12).evaluar(60), 801.425833, 1e-5));
+    VERIFICAR(cerca(C::saturacion(30, 1.5).evaluar(60), 0.733902, 1e-5));
+    VERIFICAR(cerca(C::producto({C::linealC(1, 1), C::exponencial(2, 1.01)}).evaluar(60), 215.845152, 1e-5));
+    VERIFICAR(cerca(C::escalar(C::saturacion(10), 100).evaluar(60), 85.507246, 1e-5));
+    VERIFICAR(C::tramos({{0, 1}, {10, 1}, {60, 0.4}}).evaluar(60) == 0.4);
   }
   {
     const Grilla g = Grilla::desdeTexto({"#####", "#...#", "#.#.#", "#...#", "#####"});

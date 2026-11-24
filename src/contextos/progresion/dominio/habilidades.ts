@@ -14,16 +14,6 @@ export interface ReglasHabilidades {
   readonly factor: Readonly<Record<string, number>>;
 }
 
-/** Reglas de ejemplo: tipo de habilidad -> stat y factor. */
-export const HABILIDADES_ESTANDAR: ReglasHabilidades = {
-  puntosPorNivel: 5,
-  tope: (nivel) => Math.max(0, nivel - 1),
-  factor: {
-    golpe: 1, patada: 1, defensa: 1 / 3, hp: 4 / 3, mp: 1,
-    habilidad: 1, habilidadNueva: 1, especial: 1, especialFinal: 1, agarre: 1,
-  },
-};
-
 export class PuntosHabilidad {
   private readonly reglas: ReglasHabilidades;
   private totales = 0;
@@ -31,7 +21,7 @@ export class PuntosHabilidad {
   private nivelMasAlto = 1;
   private readonly asignados = new Map<string, number>();
 
-  constructor(reglas: ReglasHabilidades = HABILIDADES_ESTANDAR) {
+  constructor(reglas: ReglasHabilidades) {
     this.reglas = reglas;
   }
 

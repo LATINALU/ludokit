@@ -61,7 +61,7 @@ export interface PedidoCompra {
   readonly inventario: Inventario;
   readonly pago: MedioDePago;
   readonly nivelJugador?: number;
-  /** Nivel mínimo para usar el objeto (REQUEST_LEVEL). */
+  /** Nivel mínimo para usar el objeto. */
   readonly nivelRequerido?: (objeto: number) => number;
 }
 

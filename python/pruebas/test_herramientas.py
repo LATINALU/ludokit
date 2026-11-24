@@ -35,18 +35,22 @@ class Vectores(unittest.TestCase):
     def test_balance(self):
         for m in V["mitigacion"]:
             self.assertAlmostEqual(nucleo.mitigacion(m["defensa"], m["k"]), m["resultado"], places=5)
+        for c in V["curvas"]:
+            for x, y in c["valores"]:
+                self.assertAlmostEqual(nucleo.evaluar(c["curva"], x), y, places=4, msg=c["curva"]["tipo"])
+        m = nucleo.ModeloBalance(V["modelo_balance"]["curva"], V["modelo_balance"]["reglas"])
         for p in V["poder_esperado"]:
-            r = nucleo.poder_esperado(p["nivel"])
+            r = m.poder(p["nivel"])
             for k in ("golpe", "vida", "defensa", "resistencia"):
                 self.assertAlmostEqual(r[k], p[k], places=4)
         for e in V["enemigo_esperado"]:
-            r = nucleo.enemigo_esperado(e["nivel"])
+            r = m.enemigo(e["nivel"])
             self.assertEqual({k: r[k] for k in ("vida", "ataque", "defensa", "exp")}, {k: e[k] for k in ("vida", "ataque", "defensa", "exp")})
         for j in V["jefe_esperado"]:
-            r = nucleo.jefe_esperado(j["nivel"])
+            r = m.jefe(j["nivel"])
             self.assertEqual((r["vida"], r["ataque"], r["defensa"], r["exp"]), (j["vida"], j["ataque"], j["defensa"], j["exp"]))
         for p in V["pesos_rareza"]:
-            for a, b in zip(nucleo.pesos_rareza(p["nivel"]), p["pesos"]):
+            for a, b in zip(nucleo.pesos_rareza(V["tabla_rareza"], p["nivel"]), p["pesos"]):
                 self.assertAlmostEqual(a, b, places=4)
 
     def test_ruido(self):
@@ -56,12 +60,45 @@ class Vectores(unittest.TestCase):
         self.assertAlmostEqual(nucleo.ruido_valor(3.25, 7.75, 9), V["ruido"]["valor"][1], places=5)
 
 
+class NucleoNativo(unittest.TestCase):
+    """ABI C del núcleo Rust usada desde otro lenguaje (se salta si no se compiló la biblioteca)."""
+
+    def setUp(self):
+        from ludokit_herramientas import nativo
+        if not nativo.ruta_biblioteca().exists():
+            self.skipTest("compilar antes: cd rust && cargo build --release")
+        self.n = nativo.Nativo()
+
+    def test_rayos_y_horda(self):
+        n = self.n
+        self.assertEqual(n.version(), 1)
+        e = n.escena(4.0)
+        n.capsula(e, 1, 9, 2, (0, 0, 10), (0, 1.8, 10), 0.4)
+        r = n.rayos(e, [((0, 1, 0), (0, 0, 1), 50), ((0, 1, 0), (1, 0, 0), 50)])
+        self.assertEqual(r[0][:3], (1, 9, 2))
+        self.assertAlmostEqual(r[0][3], 9.6, places=4)
+        self.assertIsNone(r[1])
+        self.assertIsNone(n.rayos(e, [((0, 1, 0), (0, 0, 1), 50)], ignorar=[9])[0], "ignora al tirador")
+        n.liberar_escena(e)
+        h = n.horda(32, 32)
+        for k in range(20):
+            n.lib.ludo_horda_agregar(h, 2.0 + k * 0.2, 2.0)
+        n.lib.ludo_horda_objetivo(h, 30, 30)
+        for _ in range(120):
+            n.lib.ludo_horda_paso(h, 1 / 60)
+        pos = n.horda_posiciones(h, 20)
+        self.assertEqual(len(pos), 20)
+        self.assertTrue(all(y > 2.5 for _, y in pos))
+        n.lib.ludo_horda_liberar(h)
+
+
 class Herramientas(unittest.TestCase):
     def test_tabla_balance(self):
-        filas = tabla(30)
+        filas = tabla(300)
+        reglas = V["modelo_balance"]["reglas"]
         for f in filas:
-            self.assertTrue(5 <= f["comun_golpes_para_matar"] <= 7, f)
-            self.assertTrue(10 <= f["comun_golpes_para_morir"] <= 12, f)
+            self.assertTrue(abs(f["comun_golpes_para_matar"] - reglas["golpesParaMatar"]) <= 1, f)
+            self.assertTrue(abs(f["comun_golpes_para_morir"] - reglas["golpesParaMorir"]) <= 1, f)
 
     def test_validador(self):
         with tempfile.TemporaryDirectory() as d:

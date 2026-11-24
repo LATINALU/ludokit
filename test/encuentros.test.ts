@@ -1,7 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CerebroJefe, type DefJefe } from "../src/contextos/encuentros/dominio/jefe.ts";
-import { EncuentroOleadas, premioEncuentro, varianteParaSala, VARIANTES_EJEMPLO, durezaEncuentro } from "../src/contextos/encuentros/dominio/oleadas.ts";
+import { EncuentroOleadas, premioEncuentro, varianteParaSala, durezaEncuentro, type VarianteOleadas, type ReglasOleadas } from "../src/contextos/encuentros/dominio/oleadas.ts";
+import { PREMIO_ENCUENTRO } from "../src/modelos/piezas.ts";
+import { curva } from "../src/nucleo/escalado.ts";
+
+const REGLAS: ReglasOleadas = { acercarTras: 25, retirarTras: 45, esperaEntreOleadas: 1, tiempoPorOleada: 24, tiempoExtraPorOleadaHecha: 2 };
+const VARIANTES: readonly VarianteOleadas[] = [
+  { id: "creciente", nombre: "Crecientes", regla: "", desde: 1, peso: 1.2, oleadas: (n) => 2 + Math.floor(n / 6), enemigosBase: (n) => 3 + Math.floor(n / 4), enemigosPorOleada: 1, elites: "ultimo" },
+  { id: "contrarreloj", nombre: "Contrarreloj", regla: "", desde: 2, peso: 1, oleadas: 3, enemigosBase: 2, enemigosPorOleada: 1, elites: "ultimo", tiempo: 90 },
+  { id: "elite", nombre: "Élites", regla: "", desde: 3, peso: 0.9, oleadas: 2, enemigosBase: 2, enemigosPorOleada: 0, elites: "todos", cofre: 1, pieza: 3 },
+];
 import { ajusteDificultad, decidirEspejo, describirHuella, habitoDominante, HUELLA_NEUTRA, RastreadorHabitos } from "../src/contextos/ia/dominio/huella-jugador.ts";
 import { Remate } from "../src/contextos/feel/dominio/remate.ts";
 import { Pcg32 } from "../src/nucleo/pcg32.ts";
@@ -40,8 +49,8 @@ test("jefe: aviso antes de cada ataque, sin repetir, recarga propia, fases y ven
 });
 
 test("oleadas: secuencia, élite al final, reloj con tiempo extra, anti-bloqueo y premio con sellos", () => {
-  const v = VARIANTES_EJEMPLO.find((x) => x.id === "contrarreloj")!;
-  const e = new EncuentroOleadas(v, 5);
+  const v = VARIANTES.find((x) => x.id === "contrarreloj")!;
+  const e = new EncuentroOleadas(v, 5, REGLAS);
   const ev: string[] = [];
   let vivos = 0;
   let extra = 0;
@@ -59,16 +68,18 @@ test("oleadas: secuencia, élite al final, reloj con tiempo extra, anti-bloqueo 
   assert.deepEqual(ev.filter((x) => x === "oleada").length, 3);
   assert.equal(extra, 24 + 2 + 24 + 4);
   assert.equal(ev[ev.length - 1], "fin");
-  const p = premioEncuentro(e, true, 1);
-  assert.ok(p.sellos.some((s) => s.texto.startsWith("Intocable")) && p.sellos.some((s) => s.texto.startsWith("¡A tiempo")));
+  const p = premioEncuentro(e, true, 1, PREMIO_ENCUENTRO);
+  assert.ok(p.sellos.some((s) => s.sello === "intocable") && p.sellos.some((s) => s.sello === "a-tiempo"));
   assert.equal(p.racha, 2);
-  const trabado = new EncuentroOleadas(VARIANTES_EJEMPLO[0], 1);
+  const trabado = new EncuentroOleadas(VARIANTES[0], 1, REGLAS);
   const ev2: string[] = [];
   for (let i = 0; i < 60 * 50; i++) for (const x of trabado.actualizar(1 / 60, 3)) ev2.push(x.tipo);
   assert.ok(ev2.includes("acercar") && ev2.includes("retirar"), "nunca queda imposible de terminar");
-  assert.equal(varianteParaSala(99, 10).id, varianteParaSala(99, 10).id);
-  assert.equal(varianteParaSala(99, 1).id, "creciente", "en nivel 1 solo hay una desbloqueada");
-  assert.ok(durezaEncuentro(25).extra === 3);
+  assert.equal(varianteParaSala(99, 10, VARIANTES).id, varianteParaSala(99, 10, VARIANTES).id);
+  assert.equal(varianteParaSala(99, 1, VARIANTES).id, "creciente", "en nivel 1 solo hay una desbloqueada");
+  const dureza = { vida: curva.lineal(1, 0.05), danio: curva.lineal(1, 0.02), extra: curva.lineal(0, 1 / 8), probElite: curva.limitar(curva.lineal(0, 0.02), 0, 0.4) };
+  assert.equal(durezaEncuentro(25, dureza).extra, 3);
+  assert.equal(durezaEncuentro(500, dureza).probElite, 0.4, "sin tope de nivel: la curva sigue y se recorta donde se pide");
 });
 
 test("huella del jugador: hábito dominante, descripción, espejo y dificultad dinámica", () => {

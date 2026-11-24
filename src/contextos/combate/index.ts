@@ -7,3 +7,6 @@ export * from "./dominio/estados.ts";
 export * from "./dominio/estilo.ts";
 export * from "./dominio/habilidades.ts";
 export * from "./dominio/stats.ts";
+export * from "./dominio/lanzamiento.ts";
+export * from "./dominio/recursos.ts";
+export * from "./dominio/control.ts";

@@ -78,58 +78,120 @@ def mitigacion(defensa: float, k: float) -> float:
     return k / (k + max(0.0, defensa))
 
 
-def poder_esperado(nivel: float) -> dict:
-    p = max(1.0, nivel)
-    q = min(p, 24.0)
-    hondo = (p / 24) ** 0.8 if p > 24 else 1.0
-    return {
-        "golpe": 30 * q ** 0.93 * hondo,
-        "vida": 115 * q ** 0.78 * hondo,
-        "defensa": 12 * q ** 0.92 * (p / 24 if p > 24 else 1.0),
-        "resistencia": min(0.12, 0.005 * p),
-    }
+def evaluar(c: dict, x: float) -> float:
+    """Evalúa una curva de ludokit (mismo formato JSON que `nucleo/escalado.ts`)."""
+    t = c["tipo"]
+    if t == "constante":
+        return c["valor"]
+    if t == "lineal":
+        return c["base"] + c["porNivel"] * (x - 1)
+    if t == "potencia":
+        return c["base"] * max(0.0, x) ** c["exp"]
+    if t == "exponencial":
+        return c["base"] * c["razon"] ** (x - 1)
+    if t == "saturacion":
+        e = c.get("exp", 1)
+        d = max(0.0, x - 1) ** e
+        return d / (d + max(1e-9, c["mitad"]) ** e)
+    if t == "logistica":
+        f = lambda v: 1 / (1 + math.exp(-c["pendiente"] * (v - c["centro"])))  # noqa: E731
+        return max(0.0, (f(x) - f(1)) / (1 - f(1)))
+    if t == "tramos":
+        p = c["puntos"]
+        lin = c.get("extrapolar") == "lineal"
+        pend = lambda a, b: b[1] if b[0] == a[0] else a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])  # noqa: E731
+        if not p:
+            return 0.0
+        if len(p) == 1:
+            return p[0][1]
+        if x <= p[0][0]:
+            return pend(p[0], p[1]) if lin else p[0][1]
+        for k in range(1, len(p)):
+            if x <= p[k][0]:
+                return pend(p[k - 1], p[k])
+        return pend(p[-2], p[-1]) if lin else p[-1][1]
+    if t == "escalones":
+        v = c.get("inicial", 0)
+        for desde, valor in c["puntos"]:
+            if x >= desde:
+                v = valor
+        return v
+    if t == "topeSuave":
+        return evaluar(c["curva"], x) if x <= c["desde"] else evaluar(c["curva"], c["desde"]) * (x / c["desde"]) ** c["exp"]
+    if t == "limitar":
+        v = evaluar(c["curva"], x)
+        return min(c.get("max", math.inf), max(c.get("min", -math.inf), v))
+    if t == "producto":
+        r = 1.0
+        for k in c["curvas"]:
+            r *= evaluar(k, x)
+        return r
+    if t == "suma":
+        return sum(evaluar(k, x) for k in c["curvas"])
+    if t == "desplazar":
+        return evaluar(c["curva"], x + c["desplazar"])
+    if t == "escalar":
+        return c["valor"] * evaluar(c["curva"], x)
+    raise ValueError(f"curva desconocida: {t}")
 
 
 def _round_js(x: float) -> int:
     return math.floor(x + 0.5)
 
 
-def pasa_al_jugador(nivel: float) -> float:
-    pe = poder_esperado(nivel)
-    k = max(30.0, 1.5 * pe["defensa"])
-    return mitigacion(pe["defensa"], k) * (1 - pe["resistencia"])
+class ModeloBalance:
+    """Port de `balance.ModeloBalance`: curva del jugador + reglas, sin nivel máximo."""
+
+    def __init__(self, curva: dict, reglas: dict) -> None:
+        self.c = curva
+        self.r = reglas
+
+    def poder(self, nivel: float) -> dict:
+        p = max(1.0, nivel)
+        return {
+            "golpe": evaluar(self.c["golpe"], p),
+            "vida": evaluar(self.c["vida"], p),
+            "defensa": evaluar(self.c["defensa"], p),
+            "resistencia": min(0.95, max(0.0, evaluar(self.c["resistencia"], p))),
+        }
+
+    def k_jugador(self, nivel: float) -> float:
+        return max(self.r["kJugadorMin"], self.r["kJugadorFactor"] * self.poder(nivel)["defensa"])
+
+    def pasa_al_jugador(self, nivel: float) -> float:
+        pe = self.poder(nivel)
+        return mitigacion(pe["defensa"], self.k_jugador(nivel)) * (1 - pe["resistencia"])
+
+    def enemigo(self, nivel: float, peso_vida: float = 1, peso_ataque: float = 1) -> dict:
+        r = self.r
+        n = max(1.0, nivel)
+        pe = self.poder(n)
+        defensa = evaluar(r["defensaEnemigo"], n)
+        return {
+            "vida": _round_js(r["golpesParaMatar"] * pe["golpe"] * mitigacion(defensa, r["kEnemigo"]) * peso_vida),
+            "ataque": _round_js(pe["vida"] / (r["golpesParaMorir"] * self.pasa_al_jugador(n)) * peso_ataque),
+            "defensa": _round_js(defensa),
+            "exp": _round_js(evaluar(r["expEnemigo"], n)),
+        }
+
+    def jefe(self, nivel: float, peso: float = 1) -> dict:
+        r = self.r
+        n = max(1.0, nivel)
+        pe = self.poder(n)
+        defensa = evaluar(r["defensaJefe"], n)
+        duracion = evaluar(r["duracionJefe"], n)
+        aguante = max(1.0, evaluar(r["aguanteJefe"], n))
+        return {
+            "vida": _round_js(pe["golpe"] * mitigacion(defensa, r["kEnemigo"]) * r["ritmoJugador"] * duracion * peso * r["multVidaJefe"]),
+            "ataque": _round_js(pe["vida"] / (aguante * self.pasa_al_jugador(n))),
+            "defensa": _round_js(defensa),
+            "exp": _round_js(evaluar(r["expJefe"], n)),
+            "duracion": duracion,
+        }
 
 
-def enemigo_esperado(nivel: float) -> dict:
-    p = max(0.0, nivel - 1)
-    pe = poder_esperado(nivel)
-    defensa = 1 + 0.45 * p
-    return {
-        "vida": _round_js(6 * pe["golpe"] * mitigacion(defensa, 60)),
-        "ataque": _round_js(pe["vida"] / (11 * pasa_al_jugador(nivel))),
-        "defensa": _round_js(defensa),
-        "exp": _round_js(1 + 0.8 * p),
-    }
-
-
-def jefe_esperado(nivel: float) -> dict:
-    p = max(1.0, nivel)
-    pe = poder_esperado(p)
-    defensa = 6 * (1 + 0.3 * (p - 1))
-    duracion = 48 + 1.8 * p
-    aguante = max(5.5, 7 - (p - 1) / 6)
-    return {
-        "vida": _round_js(pe["golpe"] * mitigacion(defensa, 60) * 2 * duracion * (1.6 * 1.2 * 2) / 2),
-        "ataque": _round_js(pe["vida"] / (aguante * 1.1 * pasa_al_jugador(p))),
-        "defensa": _round_js(defensa),
-        "exp": _round_js(120 * (1 + 0.9 * (p - 1))),
-        "duracion": duracion,
-    }
-
-
-RAREZA = {"primero": [64, 28, 7.4, 0.5, 0.06, 0.04], "ultimo": [26, 36, 27, 10, 1.2, 0.12], "factor": [1, 1, 0.8, 0.5, 0.4, 0.5]}
-
-
-def pesos_rareza(nivel: float, niveles: int = 24, exponente: float = 1.7) -> list[float]:
-    k = min(1.0, max(0.0, (nivel - 1) / max(1, niveles - 1))) ** exponente
-    return [(a + (b - a) * k) * f for a, b, f in zip(RAREZA["primero"], RAREZA["ultimo"], RAREZA["factor"])]
+def pesos_rareza(tabla: dict, nivel: float) -> list[float]:
+    """Pesos por rareza en un nivel (tabla con `primero`, `ultimo`, `progreso` y `factor` opcional)."""
+    k = min(1.0, max(0.0, evaluar(tabla["progreso"], max(1.0, nivel))))
+    factor = tabla.get("factor") or [1] * len(tabla["primero"])
+    return [(a + (b - a) * k) * f for a, b, f in zip(tabla["primero"], tabla["ultimo"], factor)]

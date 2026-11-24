@@ -35,29 +35,86 @@ fn mulberry32_identico() {
     }
 }
 
+/// Convierte una curva JSON (formato de `nucleo/escalado.ts`) en `Curva`.
+fn curva(v: &Value) -> Curva {
+    let f = |k: &str| v[k].as_f64().unwrap();
+    let pares = |k: &str| v[k].as_array().unwrap().iter().map(|p| (p[0].as_f64().unwrap(), p[1].as_f64().unwrap())).collect::<Vec<_>>();
+    let sub = |k: &str| Box::new(curva(&v[k]));
+    let lista = || v["curvas"].as_array().unwrap().iter().map(curva).collect::<Vec<_>>();
+    match v["tipo"].as_str().unwrap() {
+        "constante" => Curva::Constante(f("valor")),
+        "lineal" => Curva::Lineal { base: f("base"), por_nivel: f("porNivel") },
+        "potencia" => Curva::Potencia { base: f("base"), exp: f("exp") },
+        "exponencial" => Curva::Exponencial { base: f("base"), razon: f("razon") },
+        "saturacion" => Curva::Saturacion { mitad: f("mitad"), exp: v["exp"].as_f64().unwrap_or(1.0) },
+        "logistica" => Curva::Logistica { centro: f("centro"), pendiente: f("pendiente") },
+        "tramos" => Curva::Tramos { puntos: pares("puntos"), extrapolar_lineal: v["extrapolar"].as_str() == Some("lineal") },
+        "escalones" => Curva::Escalones { puntos: pares("puntos"), inicial: v["inicial"].as_f64().unwrap_or(0.0) },
+        "topeSuave" => Curva::TopeSuave { curva: sub("curva"), desde: f("desde"), exp: f("exp") },
+        "limitar" => Curva::Limitar { curva: sub("curva"), min: v["min"].as_f64().unwrap_or(f64::NEG_INFINITY), max: v["max"].as_f64().unwrap_or(f64::INFINITY) },
+        "producto" => Curva::Producto(lista()),
+        "suma" => Curva::Suma(lista()),
+        "desplazar" => Curva::Desplazar { curva: sub("curva"), desplazar: f("desplazar") },
+        "escalar" => Curva::Escalar { curva: sub("curva"), valor: f("valor") },
+        t => panic!("curva desconocida {t}"),
+    }
+}
+
+fn modelo(v: &Value) -> ModeloBalance {
+    let c = &v["modelo_balance"]["curva"];
+    let r = &v["modelo_balance"]["reglas"];
+    let n = |k: &str| r[k].as_f64().unwrap();
+    ModeloBalance {
+        curva: CurvaPoder { golpe: curva(&c["golpe"]), vida: curva(&c["vida"]), defensa: curva(&c["defensa"]), resistencia: curva(&c["resistencia"]) },
+        reglas: ReglasBalance {
+            golpes_para_matar: n("golpesParaMatar"), golpes_para_morir: n("golpesParaMorir"), k_enemigo: n("kEnemigo"),
+            k_jugador_factor: n("kJugadorFactor"), k_jugador_min: n("kJugadorMin"),
+            defensa_enemigo: curva(&r["defensaEnemigo"]), exp_enemigo: curva(&r["expEnemigo"]), ritmo_jugador: n("ritmoJugador"),
+            duracion_jefe: curva(&r["duracionJefe"]), aguante_jefe: curva(&r["aguanteJefe"]), defensa_jefe: curva(&r["defensaJefe"]),
+            exp_jefe: curva(&r["expJefe"]), mult_vida_jefe: n("multVidaJefe"),
+        },
+    }
+}
+
+#[test]
+fn curvas_identicas() {
+    let v = vectores();
+    for c in v["curvas"].as_array().unwrap() {
+        let cu = curva(&c["curva"]);
+        for par in c["valores"].as_array().unwrap() {
+            let (x, y) = (par[0].as_f64().unwrap(), par[1].as_f64().unwrap());
+            assert!(cerca(cu.evaluar(x), y, 1e-5), "{:?} en {x}: {} != {y}", c["curva"]["tipo"], cu.evaluar(x));
+        }
+    }
+}
+
 #[test]
 fn balance_identico() {
     let v = vectores();
     for m in v["mitigacion"].as_array().unwrap() {
         assert!(cerca(mitigacion(m["defensa"].as_f64().unwrap(), m["k"].as_f64().unwrap()), m["resultado"].as_f64().unwrap(), 1e-5));
     }
+    let mo = modelo(&v);
     for p in v["poder_esperado"].as_array().unwrap() {
-        let r = poder_esperado(p["nivel"].as_f64().unwrap());
+        let r = mo.poder(p["nivel"].as_f64().unwrap());
         assert!(cerca(r.golpe, p["golpe"].as_f64().unwrap(), 1e-6));
         assert!(cerca(r.vida, p["vida"].as_f64().unwrap(), 1e-6));
         assert!(cerca(r.defensa, p["defensa"].as_f64().unwrap(), 1e-6));
     }
     for e in v["enemigo_esperado"].as_array().unwrap() {
-        let r = enemigo_esperado(e["nivel"].as_f64().unwrap());
+        let r = mo.enemigo(e["nivel"].as_f64().unwrap(), 1.0, 1.0);
         assert_eq!((r.vida, r.ataque, r.defensa, r.exp), (e["vida"].as_f64().unwrap(), e["ataque"].as_f64().unwrap(), e["defensa"].as_f64().unwrap(), e["exp"].as_f64().unwrap()));
     }
     for j in v["jefe_esperado"].as_array().unwrap() {
-        let (r, dur) = jefe_esperado(j["nivel"].as_f64().unwrap());
+        let (r, dur) = mo.jefe(j["nivel"].as_f64().unwrap(), 1.0);
         assert_eq!((r.vida, r.ataque, r.defensa), (j["vida"].as_f64().unwrap(), j["ataque"].as_f64().unwrap(), j["defensa"].as_f64().unwrap()));
         assert!(cerca(dur, j["duracion"].as_f64().unwrap(), 1e-9));
     }
+    let t = &v["tabla_rareza"];
+    let lista = |k: &str| t[k].as_array().map(|a| a.iter().map(|x| x.as_f64().unwrap()).collect::<Vec<_>>());
+    let tabla = TablaRareza { primero: lista("primero").unwrap(), ultimo: lista("ultimo").unwrap(), progreso: curva(&t["progreso"]), factor: lista("factor") };
     for p in v["pesos_rareza"].as_array().unwrap() {
-        let r = pesos_rareza(p["nivel"].as_f64().unwrap(), 24.0, 1.7);
+        let r = pesos_rareza(&tabla, p["nivel"].as_f64().unwrap());
         for (a, b) in r.iter().zip(p["pesos"].as_array().unwrap()) {
             assert!(cerca(*a, b.as_f64().unwrap(), 1e-5));
         }

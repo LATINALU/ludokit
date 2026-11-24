@@ -4,9 +4,11 @@
 //   - CONTRARRELOJ opcional: completar una oleada suma tiempo (más por cada oleada ya hecha).
 //   - ANTI-BLOQUEO: si pasan N s sin bajas con enemigos vivos, se los acerca al jugador; si pasan M s, se retiran
 //     (nunca una arena imposible de terminar porque un enemigo quedó trabado).
-//   - PREMIO con SELLOS de mérito (sin recibir golpes, pocos golpes, a tiempo / tarde) y RACHA de arenas seguidas.
+//   - PREMIO con SELLOS de mérito (sin recibir golpes, pocos golpes, a tiempo / tarde) y RACHA de encuentros
+//     seguidos; los sellos son códigos (el texto lo pone el juego).
 
 import { Pcg32 } from "../../../nucleo/pcg32.ts";
+import { evaluar, type Curva } from "../../../nucleo/escalado.ts";
 
 export type PoliticaElites = "ninguna" | "ultimo" | "todos" | "campeon";
 
@@ -29,17 +31,11 @@ export interface VarianteOleadas {
   readonly moneda?: (nivel: number) => number;
 }
 
-export const VARIANTES_EJEMPLO: readonly VarianteOleadas[] = [
-  { id: "creciente", nombre: "Oleadas crecientes", regla: "Oleadas que crecen; un campeón cierra la última.", desde: 1, peso: 1.2, oleadas: (n) => 2 + Math.floor(n / 6), enemigosBase: (n) => 3 + Math.floor(n / 4), enemigosPorOleada: 1, elites: "ultimo", moneda: (n) => 10 * n },
-  { id: "contrarreloj", nombre: "Contrarreloj", regla: "Limpia 3 oleadas antes de que se acabe el tiempo.", desde: 2, peso: 1, oleadas: 3, enemigosBase: (n) => 2 + Math.floor(n / 4), enemigosPorOleada: 1, elites: "ultimo", tiempo: (n) => 90 + Math.min(60, n * 4), moneda: (n) => 10 * n },
-  { id: "elite", nombre: "Foso de élites", regla: "Pocos rivales, todos élites. Premio mejorado.", desde: 3, peso: 0.9, oleadas: 2, enemigosBase: (n) => 2 + Math.floor(n / 8), enemigosPorOleada: 0, elites: "todos", cofre: 1, pieza: 3, moneda: (n) => 15 * n },
-  { id: "marea", nombre: "La marea", regla: "Cuatro oleadas numerosas. Mucha moneda.", desde: 4, peso: 0.8, oleadas: 4, enemigosBase: (n) => 5 + Math.floor(n / 4), enemigosPorOleada: 1, elites: "ultimo", moneda: (n) => 40 * n },
-];
 
 const val = (v: number | ((n: number) => number) | undefined, n: number, def = 0): number => (v === undefined ? def : typeof v === "number" ? v : v(n));
 
 /** Variante determinista por semilla entre las desbloqueadas en `nivel`. */
-export function varianteParaSala(semilla: number, nivel: number, lista: readonly VarianteOleadas[] = VARIANTES_EJEMPLO): VarianteOleadas {
+export function varianteParaSala(semilla: number, nivel: number, lista: readonly VarianteOleadas[]): VarianteOleadas {
   const pool = lista.filter((v) => nivel >= v.desde);
   const az = new Pcg32(semilla ^ 0x5a17);
   const total = pool.reduce((s, v) => s + v.peso, 0);
@@ -163,49 +159,79 @@ export class EncuentroOleadas {
   }
 }
 
+export type Sello = "intocable" | "pocos-golpes" | "a-tiempo" | "tarde" | "racha";
+
 export interface PremioEncuentro {
   readonly cofre: number;
   readonly pieza: number;
   readonly moneda: number;
-  readonly sellos: ReadonlyArray<{ readonly texto: string; readonly bueno: boolean }>;
+  /** Códigos de mérito: el juego los traduce a texto (i18n) y decide cómo mostrarlos. */
+  readonly sellos: ReadonlyArray<{ readonly sello: Sello; readonly bueno: boolean; readonly valor?: number }>;
   readonly racha: number;
 }
 
+export interface ReglasPremio {
+  /** Grado de cofre base según el nivel y su tope. */
+  readonly cofre: Curva;
+  readonly cofreMax: number;
+  /** Rareza mínima de la pieza por defecto y su tope (rareza más alta del juego). */
+  readonly pieza: number;
+  readonly piezaMax: number;
+  readonly moneda: Curva;
+  /** Sin golpes: +cofre y +rareza. Pocos golpes (≤ umbral): × moneda. */
+  readonly pocosGolpes: number;
+  readonly multPocosGolpes: number;
+  /** Racha: +porRacha por encuentro seguido, hasta +maxRacha. */
+  readonly porRacha: number;
+  readonly maxRacha: number;
+}
+
 /** Premio con sellos de mérito. `rachaPrevia`: encuentros seguidos completados antes de este. */
-export function premioEncuentro(e: EncuentroOleadas, aTiempo: boolean, rachaPrevia: number): PremioEncuentro {
+export function premioEncuentro(e: EncuentroOleadas, aTiempo: boolean, rachaPrevia: number, r: ReglasPremio): PremioEncuentro {
   const v = e.variante;
-  let cofre = (v.cofre ?? 0) + Math.min(3, 1 + Math.floor(e.nivel / 8));
-  let pieza = v.pieza ?? 2;
-  let moneda = v.moneda ? v.moneda(e.nivel) : 10 * e.nivel;
-  const sellos: Array<{ texto: string; bueno: boolean }> = [];
+  let cofre = (v.cofre ?? 0) + Math.round(evaluar(r.cofre, e.nivel));
+  let pieza = v.pieza ?? r.pieza;
+  let moneda = v.moneda ? v.moneda(e.nivel) : Math.round(evaluar(r.moneda, e.nivel));
+  const sellos: Array<{ sello: Sello; bueno: boolean; valor?: number }> = [];
   if (e.golpesRecibidos === 0) {
     cofre++;
-    pieza = Math.min(5, pieza + 1);
-    sellos.push({ texto: "Intocable: el cofre y la pieza mejoran", bueno: true });
-  } else if (e.golpesRecibidos <= 3) {
-    moneda = Math.round(moneda * 1.5);
-    sellos.push({ texto: "Pocos rasguños: +50 % de moneda", bueno: true });
+    pieza = Math.min(r.piezaMax, pieza + 1);
+    sellos.push({ sello: "intocable", bueno: true });
+  } else if (e.golpesRecibidos <= r.pocosGolpes) {
+    moneda = Math.round(moneda * r.multPocosGolpes);
+    sellos.push({ sello: "pocos-golpes", bueno: true, valor: r.multPocosGolpes });
   }
   if (e.tiempoTotal > 0) {
     if (aTiempo) {
       cofre++;
-      sellos.push({ texto: "¡A tiempo!: el cofre mejora", bueno: true });
+      sellos.push({ sello: "a-tiempo", bueno: true });
     } else {
       cofre--;
       pieza = -1;
-      sellos.push({ texto: "Tarde: se acabó el tiempo", bueno: false });
+      sellos.push({ sello: "tarde", bueno: false });
     }
   }
   const racha = rachaPrevia + 1;
   if (racha >= 2) {
-    moneda = Math.round(moneda * (1 + Math.min(1, (racha - 1) * 0.25)));
-    sellos.push({ texto: `Racha ×${racha}`, bueno: true });
+    moneda = Math.round(moneda * (1 + Math.min(r.maxRacha, (racha - 1) * r.porRacha)));
+    sellos.push({ sello: "racha", bueno: true, valor: racha });
   }
-  return { cofre: Math.max(0, Math.min(3, cofre)), pieza, moneda, sellos, racha };
+  return { cofre: Math.max(0, Math.min(r.cofreMax, cofre)), pieza, moneda, sellos, racha };
 }
 
-/** Escalado por nivel de los enemigos de un encuentro: +3,7 % vida y +1,75 % daño por nivel, uno más cada 8. */
-export const durezaEncuentro = (nivel: number): { vida: number; danio: number; extra: number; probElite: number } => {
-  const p = Math.max(0, nivel - 1);
-  return { vida: 1 + p * 0.037, danio: 1 + p * 0.0175, extra: Math.floor(p / 8), probElite: Math.min(0.4, p * 0.017) };
-};
+export interface ReglasDureza {
+  readonly vida: Curva;
+  readonly danio: Curva;
+  /** Enemigos extra por oleada. */
+  readonly extra: Curva;
+  /** Probabilidad de que un enemigo sea élite (recortar con `curva.limitar`). */
+  readonly probElite: Curva;
+}
+
+/** Escalado por nivel de los enemigos de un encuentro (sin tope: todo son curvas). */
+export const durezaEncuentro = (nivel: number, r: ReglasDureza): { vida: number; danio: number; extra: number; probElite: number } => ({
+  vida: evaluar(r.vida, nivel),
+  danio: evaluar(r.danio, nivel),
+  extra: Math.max(0, Math.floor(evaluar(r.extra, nivel))),
+  probElite: Math.min(1, Math.max(0, evaluar(r.probElite, nivel))),
+});

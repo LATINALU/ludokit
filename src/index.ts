@@ -44,3 +44,19 @@ export * as roguelite from "./contextos/roguelite/index.ts";
 export * as social from "./contextos/social/index.ts";
 
 export * as persistencia from "./infraestructura/persistencia/guardado.ts";
+
+// Géneros y modos nuevos
+export * as disparos from "./contextos/disparos/index.ts";
+export * as moba from "./contextos/moba/index.ts";
+export * as vision from "./contextos/vision/index.ts";
+export * as grupo from "./contextos/grupo/index.ts";
+export * as supervivencia from "./contextos/supervivencia/index.ts";
+export * as turnos from "./contextos/turnos/index.ts";
+export * as mazo from "./contextos/mazo/index.ts";
+export * as estrategia from "./contextos/estrategia/index.ts";
+export * as carreras from "./contextos/carreras/index.ts";
+export * as feedback from "./contextos/feedback/index.ts";
+
+// Datos propios, modelos combinables y asistente
+export * as datos from "./datos/index.ts";
+export * as modelos from "./modelos/index.ts";

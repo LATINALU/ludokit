@@ -1,0 +1,1017 @@
+{
+ "version": 1,
+ "tolerancia": {
+  "typescript": 0,
+  "entreLenguajes": 0.000001
+ },
+ "escenarios": {
+  "controlador3d": [
+   {
+    "pos": {
+     "x": 2.4003324770763013,
+     "y": 0.4284885340527086,
+     "z": 5.273683592605626
+    },
+    "vel": {
+     "x": 5.883130371265484,
+     "y": 0,
+     "z": 1.1784638453061076
+    },
+    "enSuelo": true,
+    "agachado": false,
+    "deslizando": 0
+   },
+   {
+    "pos": {
+     "x": 8.400562126449213,
+     "y": 1.5753172502357748,
+     "z": 5.527869172670073
+    },
+    "vel": {
+     "x": 6.126444018931313,
+     "y": -2.7999999999999976,
+     "z": 0.07698352736189006
+    },
+    "enSuelo": false,
+    "agachado": false,
+    "deslizando": 0
+   },
+   {
+    "pos": {
+     "x": 13.685402519927313,
+     "y": 0.6863019498690264,
+     "z": 8.132994095562983
+    },
+    "vel": {
+     "x": 5.108947466321493,
+     "y": 0,
+     "z": 3.14621292769056
+    },
+    "enSuelo": true,
+    "agachado": false,
+    "deslizando": 0
+   },
+   {
+    "pos": {
+     "x": 20.72824277206174,
+     "y": 0.5304811823095323,
+     "z": 10.294339324152402
+    },
+    "vel": {
+     "x": 7.288502489430903,
+     "y": 0,
+     "z": -4.078724505152792
+    },
+    "enSuelo": true,
+    "agachado": false,
+    "deslizando": 0
+   },
+   {
+    "pos": {
+     "x": 22.806659135808516,
+     "y": 1.6500332688244388,
+     "z": 1.9802711262910906
+    },
+    "vel": {
+     "x": -0.43414501986128623,
+     "y": -2.7999999999999976,
+     "z": -10.58751902618625
+    },
+    "enSuelo": false,
+    "agachado": false,
+    "deslizando": 0
+   },
+   {
+    "pos": {
+     "x": 17.525652652435966,
+     "y": 0.8245117455535776,
+     "z": -4.525561406508496
+    },
+    "vel": {
+     "x": -6.623615290249922,
+     "y": 0,
+     "z": -5.700828575393375
+    },
+    "enSuelo": true,
+    "agachado": false,
+    "deslizando": 0
+   },
+   {
+    "pos": {
+     "x": 11.997379478326316,
+     "y": 0.5739055488599408,
+     "z": -9.98135348675871
+    },
+    "vel": {
+     "x": -0.9829685312003029,
+     "y": 0,
+     "z": -2.834391092751655
+    },
+    "enSuelo": true,
+    "agachado": true,
+    "deslizando": 0
+   },
+   {
+    "pos": {
+     "x": 8.126136379363006,
+     "y": 1.4342392588194581,
+     "z": -16.386595250082244
+    },
+    "vel": {
+     "x": -6.098524141326032,
+     "y": -2.7999999999999976,
+     "z": -8.280291547894564
+    },
+    "enSuelo": false,
+    "agachado": false,
+    "deslizando": 0
+   },
+   {
+    "pos": {
+     "x": 2.220745478877556,
+     "y": -0.04743299832777258,
+     "z": -15.197436167064415
+    },
+    "vel": {
+     "x": -1.9728904967793335,
+     "y": 0,
+     "z": 8.398902817337355
+    },
+    "enSuelo": true,
+    "agachado": false,
+    "deslizando": 0
+   },
+   {
+    "pos": {
+     "x": 1.7039721323193695,
+     "y": 0.3553221654288346,
+     "z": -6.369357521226386
+    },
+    "vel": {
+     "x": 2.5342011431679206,
+     "y": 0,
+     "z": 8.27766421283327
+    },
+    "enSuelo": true,
+    "agachado": false,
+    "deslizando": 0
+   }
+  ],
+  "arma": [
+   {
+    "balas": 30,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0,
+    "yaw": 0,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   },
+   {
+    "balas": 30,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0,
+    "yaw": 0,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   },
+   {
+    "balas": 30,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0,
+    "yaw": 0,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   },
+   {
+    "balas": 29,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0.2588673820495606,
+    "yaw": 0.0231302719116211,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   },
+   {
+    "balas": 29,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0.2588673820495606,
+    "yaw": 0.0231302719116211,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   },
+   {
+    "balas": 29,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0.2588673820495606,
+    "yaw": 0.0231302719116211,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   },
+   {
+    "balas": 28,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0.5515692672729491,
+    "yaw": 0.006216327667236329,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   },
+   {
+    "balas": 28,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0.5515692672729491,
+    "yaw": 0.006216327667236329,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   },
+   {
+    "balas": 28,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0.5515692672729491,
+    "yaw": 0.006216327667236329,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   },
+   {
+    "balas": 28,
+    "reserva": 90,
+    "estado": "lista",
+    "bloom": 0,
+    "pitch": 0.5515692672729491,
+    "yaw": 0.006216327667236329,
+    "dir": {
+     "x": 0,
+     "y": 0,
+     "z": 1
+    }
+   }
+  ],
+  "saludPartes": [
+   {
+    "total": 415.1,
+    "muerto": false,
+    "partes": {
+     "cabeza": [
+      35,
+      "ninguno",
+      false
+     ],
+     "torso": [
+      85,
+      "ninguno",
+      false
+     ],
+     "abdomen": [
+      70,
+      "ninguno",
+      false
+     ],
+     "brazoIzq": [
+      60,
+      "ninguno",
+      false
+     ],
+     "brazoDer": [
+      35.1,
+      "ninguno",
+      false
+     ],
+     "piernaIzq": [
+      65,
+      "ninguno",
+      false
+     ],
+     "piernaDer": [
+      65,
+      "ninguno",
+      false
+     ]
+    }
+   },
+   {
+    "total": 390.2,
+    "muerto": false,
+    "partes": {
+     "cabeza": [
+      35,
+      "ninguno",
+      false
+     ],
+     "torso": [
+      85,
+      "ninguno",
+      false
+     ],
+     "abdomen": [
+      45.1,
+      "ninguno",
+      false
+     ],
+     "brazoIzq": [
+      60,
+      "ninguno",
+      false
+     ],
+     "brazoDer": [
+      35.1,
+      "ninguno",
+      false
+     ],
+     "piernaIzq": [
+      65,
+      "ninguno",
+      false
+     ],
+     "piernaDer": [
+      65,
+      "ninguno",
+      false
+     ]
+    }
+   },
+   {
+    "total": 365.29999999999995,
+    "muerto": false,
+    "partes": {
+     "cabeza": [
+      35,
+      "ninguno",
+      false
+     ],
+     "torso": [
+      60.1,
+      "ninguno",
+      false
+     ],
+     "abdomen": [
+      45.1,
+      "ninguno",
+      false
+     ],
+     "brazoIzq": [
+      60,
+      "ninguno",
+      false
+     ],
+     "brazoDer": [
+      35.1,
+      "ninguno",
+      false
+     ],
+     "piernaIzq": [
+      65,
+      "ninguno",
+      false
+     ],
+     "piernaDer": [
+      65,
+      "ninguno",
+      false
+     ]
+    }
+   },
+   {
+    "total": 340.4,
+    "muerto": false,
+    "partes": {
+     "cabeza": [
+      10.100000000000001,
+      "ninguno",
+      false
+     ],
+     "torso": [
+      60.1,
+      "ninguno",
+      false
+     ],
+     "abdomen": [
+      45.1,
+      "ninguno",
+      false
+     ],
+     "brazoIzq": [
+      60,
+      "ninguno",
+      false
+     ],
+     "brazoDer": [
+      35.1,
+      "ninguno",
+      false
+     ],
+     "piernaIzq": [
+      65,
+      "ninguno",
+      false
+     ],
+     "piernaDer": [
+      65,
+      "ninguno",
+      false
+     ]
+    }
+   },
+   {
+    "total": 315.5,
+    "muerto": false,
+    "partes": {
+     "cabeza": [
+      10.100000000000001,
+      "ninguno",
+      false
+     ],
+     "torso": [
+      60.1,
+      "ninguno",
+      false
+     ],
+     "abdomen": [
+      45.1,
+      "ninguno",
+      false
+     ],
+     "brazoIzq": [
+      60,
+      "ninguno",
+      false
+     ],
+     "brazoDer": [
+      35.1,
+      "ninguno",
+      false
+     ],
+     "piernaIzq": [
+      65,
+      "ninguno",
+      false
+     ],
+     "piernaDer": [
+      40.1,
+      "ninguno",
+      false
+     ]
+    }
+   },
+   {
+    "total": 290.6,
+    "muerto": false,
+    "partes": {
+     "cabeza": [
+      10.100000000000001,
+      "ninguno",
+      false
+     ],
+     "torso": [
+      60.1,
+      "ninguno",
+      false
+     ],
+     "abdomen": [
+      45.1,
+      "ninguno",
+      false
+     ],
+     "brazoIzq": [
+      60,
+      "ninguno",
+      false
+     ],
+     "brazoDer": [
+      10.200000000000003,
+      "ninguno",
+      false
+     ],
+     "piernaIzq": [
+      65,
+      "ninguno",
+      false
+     ],
+     "piernaDer": [
+      40.1,
+      "ninguno",
+      false
+     ]
+    }
+   },
+   {
+    "total": 265.70000000000005,
+    "muerto": false,
+    "partes": {
+     "cabeza": [
+      10.100000000000001,
+      "ninguno",
+      false
+     ],
+     "torso": [
+      60.1,
+      "ninguno",
+      false
+     ],
+     "abdomen": [
+      20.200000000000003,
+      "ninguno",
+      false
+     ],
+     "brazoIzq": [
+      60,
+      "ninguno",
+      false
+     ],
+     "brazoDer": [
+      10.200000000000003,
+      "ninguno",
+      false
+     ],
+     "piernaIzq": [
+      65,
+      "ninguno",
+      false
+     ],
+     "piernaDer": [
+      40.1,
+      "ninguno",
+      false
+     ]
+    }
+   },
+   {
+    "total": 255.6,
+    "muerto": true,
+    "partes": {
+     "cabeza": [
+      0,
+      "ninguno",
+      false
+     ],
+     "torso": [
+      60.1,
+      "ninguno",
+      false
+     ],
+     "abdomen": [
+      20.200000000000003,
+      "ninguno",
+      false
+     ],
+     "brazoIzq": [
+      60,
+      "ninguno",
+      false
+     ],
+     "brazoDer": [
+      10.200000000000003,
+      "ninguno",
+      false
+     ],
+     "piernaIzq": [
+      65,
+      "ninguno",
+      false
+     ],
+     "piernaDer": [
+      40.1,
+      "ninguno",
+      false
+     ]
+    }
+   }
+  ],
+  "vehiculo": [
+   {
+    "x": 3.837026664758872,
+    "y": 1.2855452529834528,
+    "angulo": 0.4734687540960315,
+    "vx": 8.885376043168282,
+    "vy": 0.6165963182643114,
+    "giro": 1.1419567880743802,
+    "marcha": 1,
+    "rpm": 3422.7992346173505,
+    "derrapando": false
+   },
+   {
+    "x": 12.616332022289333,
+    "y": 13.042873018395817,
+    "angulo": 1.4354974849530542,
+    "vx": 19.44634356256478,
+    "vy": -5.364519379211439,
+    "giro": 0.6615130789070137,
+    "marcha": 2,
+    "rpm": 5325.238478010869,
+    "derrapando": true
+   },
+   {
+    "x": 16.63756175678546,
+    "y": 37.08590473497357,
+    "angulo": 2.0128895222613665,
+    "vx": 26.338223633704974,
+    "vy": -11.458734999212163,
+    "giro": 0.684493870894028,
+    "marcha": 3,
+    "rpm": 5513.267345868213,
+    "derrapando": true
+   },
+   {
+    "x": 5.398904347713778,
+    "y": 70.77905913693196,
+    "angulo": 2.9978376412810026,
+    "vx": 31.612224969884814,
+    "vy": -33.24731195957348,
+    "giro": 1.1370841912615737,
+    "marcha": 3,
+    "rpm": 6624.177449840922,
+    "derrapando": true
+   },
+   {
+    "x": -45.76267029653451,
+    "y": 97.99828729732562,
+    "angulo": 4.1349218325425765,
+    "vx": 35.7664813782225,
+    "vy": -65.41649910236995,
+    "giro": 1.1370841912615737,
+    "marcha": 4,
+    "rpm": 5859.754129309468,
+    "derrapando": true
+   },
+   {
+    "x": -124.62498257831777,
+    "y": 58.94117670584829,
+    "angulo": 5.272006023804127,
+    "vx": 39.40582796285054,
+    "vy": -101.97993869945688,
+    "giro": 1.1370841912615737,
+    "marcha": 4,
+    "rpm": 6458.219289022249,
+    "derrapando": true
+   },
+   {
+    "x": -132.94256408375728,
+    "y": -63.687113968163146,
+    "angulo": 6.500421315065685,
+    "vx": 42.51185620976342,
+    "vy": -146.57871120927783,
+    "giro": 1.6850707912615719,
+    "marcha": 5,
+    "rpm": 5575.910839435824,
+    "derrapando": true
+   },
+   {
+    "x": 30.12184297827991,
+    "y": -97.85851802671293,
+    "angulo": 8.185492106327265,
+    "vx": 45.137449423999875,
+    "vy": -214.24287730674553,
+    "giro": 1.6850707912615719,
+    "marcha": 5,
+    "rpm": 5921.18420575629,
+    "derrapando": true
+   },
+   {
+    "x": 66.02237518234354,
+    "y": 126.50117208290658,
+    "angulo": 9.870562897588846,
+    "vx": 47.53161865830767,
+    "vy": -286.13721860110246,
+    "giro": 1.6850707912615719,
+    "marcha": 5,
+    "rpm": 6236.0335037916375,
+    "derrapando": true
+   },
+   {
+    "x": -224.77165933883168,
+    "y": 151.51550034493368,
+    "angulo": 11.555633688850426,
+    "vx": 49.711240098972794,
+    "vy": -361.88582000889295,
+    "giro": 1.6850707912615719,
+    "marcha": 5,
+    "rpm": 6522.675693981556,
+    "derrapando": true
+   },
+   {
+    "x": -226.86996556427556,
+    "y": -207.71528510817726,
+    "angulo": 13.240704480112006,
+    "vx": 47.781542478639366,
+    "vy": -437.8632689552876,
+    "giro": 1.6850707912615719,
+    "marcha": 5,
+    "rpm": 6277.995259569487,
+    "derrapando": true
+   },
+   {
+    "x": 196.20891333828473,
+    "y": -174.06931438707153,
+    "angulo": 14.925775271373587,
+    "vx": 42.74207331217726,
+    "vy": -509.79872005056666,
+    "giro": 1.6850707912615719,
+    "marcha": 5,
+    "rpm": 5636.918697019869,
+    "derrapando": true
+   },
+   {
+    "x": 120.4501697200321,
+    "y": 301.6016972200789,
+    "angulo": 16.610846062635165,
+    "vx": 31.625217479046622,
+    "vy": -566.375086584321,
+    "giro": 1.6850707912615719,
+    "marcha": 5,
+    "rpm": 4176.371019654041,
+    "derrapando": true
+   },
+   {
+    "x": -386.7411456273751,
+    "y": 176.1482438125825,
+    "angulo": 18.295916853896745,
+    "vx": 20.82192881718814,
+    "vy": -604.5178380819499,
+    "giro": 1.6850707912615719,
+    "marcha": 4,
+    "rpm": 3446.789758432649,
+    "derrapando": true
+   },
+   {
+    "x": -208.09557614129528,
+    "y": -341.4526408792409,
+    "angulo": 19.980987645158326,
+    "vx": 9.764740607266859,
+    "vy": -624.3630808252849,
+    "giro": 1.6850707912615719,
+    "marcha": 1,
+    "rpm": 3921.653542702104,
+    "derrapando": true
+   }
+  ],
+  "director": [
+   {
+    "fase": "acumular",
+    "intensidad": 0.07449999999999987,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "acumular",
+    "intensidad": 0.14849999999999974,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "acumular",
+    "intensidad": 0.19049999999999961,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "acumular",
+    "intensidad": 0.26449999999999946,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "acumular",
+    "intensidad": 0.33849999999999913,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "acumular",
+    "intensidad": 0.38049999999999884,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "acumular",
+    "intensidad": 0.4544999999999985,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "acumular",
+    "intensidad": 0.5285000000000042,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "acumular",
+    "intensidad": 0.5705000000000209,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "acumular",
+    "intensidad": 0.6445000000000376,
+    "vivos": {
+     "caminante": 0
+    }
+   },
+   {
+    "fase": "pico",
+    "intensidad": 0.7185000000000543,
+    "vivos": {
+     "caminante": 5
+    }
+   },
+   {
+    "fase": "pico",
+    "intensidad": 0.760500000000071,
+    "vivos": {
+     "caminante": 20
+    }
+   }
+  ],
+  "turnosYMazo": [
+   {
+    "orden": [
+     2,
+     2,
+     1,
+     2,
+     3,
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     3,
+     2,
+     2,
+     1,
+     2,
+     2,
+     3,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     3,
+     2,
+     2,
+     1,
+     2
+    ],
+    "manos": [
+     [
+      12,
+      13,
+      2,
+      6,
+      14
+     ],
+     [
+      11,
+      3,
+      7,
+      5,
+      10
+     ],
+     [
+      8,
+      0,
+      1,
+      4,
+      9
+     ],
+     [
+      6,
+      14,
+      12,
+      1,
+      9
+     ],
+     [
+      13,
+      4,
+      8,
+      10,
+      7
+     ],
+     [
+      0,
+      11,
+      5,
+      3,
+      2
+     ]
+    ]
+   }
+  ],
+  "lanzador": [
+   {
+    "i": 0,
+    "ev": [
+     "cancelado:h0"
+    ],
+    "gcd": 1.28768115942029,
+    "progreso": 0
+   },
+   {
+    "i": 208,
+    "ev": [
+     "completado:h100",
+     "inicio:h200"
+    ],
+    "gcd": 1.3043478260869565,
+    "progreso": 0
+   },
+   {
+    "i": 230,
+    "ev": [
+     "cancelado:h200"
+    ],
+    "gcd": 0.9376811594202907,
+    "progreso": 0
+   },
+   {
+    "i": 326,
+    "ev": [
+     "tick:h300"
+    ],
+    "gcd": 0.8543478260869571,
+    "progreso": 0.25874999999999904
+   },
+   {
+    "i": 350,
+    "ev": [
+     "tick:h300",
+     "tick:h300"
+    ],
+    "gcd": 0.45434782608695606,
+    "progreso": 0.7762499999999986
+   },
+   {
+    "i": 374,
+    "ev": [
+     "tick:h300",
+     "completado:h300"
+    ],
+    "gcd": 0.05434782608695615,
+    "progreso": 0
+   },
+   {
+    "i": 460,
+    "ev": [
+     "cancelado:h400"
+    ],
+    "gcd": 0.28768115942028943,
+    "progreso": 0
+   }
+  ]
+ }
+}

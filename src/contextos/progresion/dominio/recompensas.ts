@@ -1,10 +1,14 @@
-// Recompensa de fin de partida y bonificaciones porcentuales. Fórmula estándar, en palabras:
-//   EXP     = base por nivel  (×2/3 si perdiste)  + tiempo jugado/5  + 20 por muerte (mazmorra: 4 por muerte)
-//   Monedas = (120 + 400·participación + tiempo/3)  (×2/3 si perdiste)  + 20 por muerte,  y todo × multiplicador
-//   - El tiempo cuenta desde el segundo 60 y como máximo 600 s (evita partidas cortas para farmear y AFK largos).
-//   - Más de 20 muertes rinden menos: se descuenta un tercio (anti-farmeo entre amigos).
-//   - Tope por partida para cada cosa: cualquier error de la fórmula tiene un daño máximo.
+// Recompensa de fin de partida (juegos por sesión: MOBA, shooter, arena, mazmorra instanciada) y bonificaciones
+// porcentuales. Estructura de la fórmula (los números los pone cada juego, ver `presets/`):
+//   EXP     = base(nivel)  (×factorDerrota si perdió)  + tiempo/divisor  + expPorMuerte·muertes
+//   Monedas = (monedasBase + monedasParticipacion·participación + tiempo/divisor)  (×factorDerrota)
+//             + monedasPorMuerte·muertes,  y todo × multiplicador
+//   - El tiempo cuenta desde `segundosSinPremio` y hasta `segundosMaximos` (anti partidas cortas y anti AFK).
+//   - Pasadas `muertesSinPenalidad`, las muertes rinden un tercio menos (anti-farmeo entre amigos).
+//   - Tope por partida: cualquier error de la fórmula tiene un daño máximo.
 // La participación es una fracción real (presentes / total): con división entera solo pagaría si nadie se va.
+
+import { evaluar, type Curva } from "../../../nucleo/escalado.ts";
 
 export interface DatosPartida {
   readonly nivel: number;
@@ -17,9 +21,8 @@ export interface DatosPartida {
 }
 
 export interface ParametrosRecompensa {
-  /** [nivel mínimo, EXP base] ordenado de menor a mayor. Debajo del primero, la base es `baseMinima`. */
-  readonly basePorNivel: ReadonlyArray<readonly [number, number]>;
-  readonly baseMinima: number;
+  /** EXP base según el nivel de la partida (escalones, lineal... cualquier `Curva`). */
+  readonly base: Curva;
   readonly factorDerrota: number;
   readonly segundosSinPremio: number;
   readonly segundosMaximos: number;
@@ -34,34 +37,8 @@ export interface ParametrosRecompensa {
   readonly tope: number;
 }
 
-export const RECOMPENSA_ESTANDAR: ParametrosRecompensa = {
-  basePorNivel: [[30, 300], [40, 400], [50, 500], [60, 600], [70, 700], [80, 800], [90, 900], [100, 1000]],
-  baseMinima: 1,
-  factorDerrota: 2 / 3,
-  segundosSinPremio: 60,
-  segundosMaximos: 600,
-  divisorTiempoExp: 5,
-  divisorTiempoMonedas: 3,
-  expPorMuerte: 20,
-  monedasPorMuerte: 20,
-  muertesSinPenalidad: 20,
-  monedasBase: 120,
-  monedasParticipacion: 400,
-  multiplicadorMonedas: 20,
-  tope: 30000,
-};
-
-/** Variante de mazmorra: cada muerte vale la quinta parte. */
-export const RECOMPENSA_MAZMORRA_ESTANDAR: ParametrosRecompensa = { ...RECOMPENSA_ESTANDAR, expPorMuerte: 4 };
-
 function baseDeNivel(nivel: number, p: ParametrosRecompensa): number {
-  let base = p.baseMinima;
-  for (const [desde, valor] of p.basePorNivel) {
-    if (nivel >= desde) {
-      base = valor;
-    }
-  }
-  return base;
+  return Math.max(0, Math.floor(evaluar(p.base, Math.max(1, nivel))));
 }
 
 function muertesEfectivas(muertes: number, p: ParametrosRecompensa): number {
@@ -72,7 +49,7 @@ function segundosPremiados(duracionMs: number, p: ParametrosRecompensa): number 
   return Math.min(p.segundosMaximos, Math.max(0, Math.floor(duracionMs / 1000) - p.segundosSinPremio));
 }
 
-export function recompensaPartida(d: DatosPartida, p: ParametrosRecompensa = RECOMPENSA_ESTANDAR): { exp: number; monedas: number } {
+export function recompensaPartida(d: DatosPartida, p: ParametrosRecompensa): { exp: number; monedas: number } {
   const participacion = d.total > 0 ? Math.min(1, d.presentes / d.total) : 1;
   const segundos = segundosPremiados(d.duracionMs, p);
   const muertes = muertesEfectivas(d.muertes, p);
@@ -101,7 +78,7 @@ export interface PremioDeNivel {
   readonly monedas: number;
 }
 
-/** Premios de los niveles alcanzados al subir de `antes` a `despues` (EventLevel: también si se saltan niveles). */
+/** Premios de los niveles alcanzados al subir de `antes` a `despues` (también si se saltan niveles). */
 export function premiosPorSubida(tabla: readonly PremioDeNivel[], antes: number, despues: number): PremioDeNivel[] {
   return tabla.filter((p) => p.nivel > antes && p.nivel <= despues);
 }

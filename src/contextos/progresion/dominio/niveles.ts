@@ -1,6 +1,11 @@
-// Curva de experiencia acumulada: umbrales[k] = experiencia mínima para estar en el nivel k+1.
-// `curvaPolinomica` genera una curva nueva; `CURVA_ESTANDAR` es una curva de 100 niveles escalonada por décadas
-// (cada 10 niveles hay un "muro" que acompaña un cambio de zona o de equipo).
+// Curvas de experiencia:
+//   - `CurvaNiveles`: tabla de umbrales acumulados (umbrales[k] = experiencia mínima para el nivel k+1) con nivel
+//     máximo; se arma a mano o con `curvaDesde(curva, niveles)`.
+//   - `CurvaNivelesInfinita`: costo de cada nivel dado por una `Curva` y SIN nivel máximo (paragon, prestigio,
+//     maestrías, niveles de cuenta). Calcula los umbrales a medida que se necesitan.
+// No hay curva por defecto: cada juego define la suya (ver `presets/`).
+
+import { evaluar, type Curva } from "../../../nucleo/escalado.ts";
 
 export class CurvaNiveles {
   readonly umbrales: readonly number[];
@@ -48,19 +53,50 @@ export function curvaPolinomica(niveles: number, base: number, exponente: number
   return new CurvaNiveles(umbrales);
 }
 
-/** Curva estándar de 100 niveles (umbrales de los niveles 1 a 101; el 101 solo cierra el nivel 100). */
-export const UMBRALES_ESTANDAR: readonly number[] = [
-  0, 300, 640, 1020, 1440, 1990, 3000, 4200, 5500, 6900,
-  10000, 13750, 18000, 22750, 28000, 33750, 40000, 46750, 54000, 61750,
-  75000, 89250, 104500, 120750, 138000, 156250, 175500, 195750, 217000, 239250,
-  270000, 302250, 336000, 371250, 408000, 446250, 486000, 527250, 570000, 614250,
-  670000, 727750, 787500, 849250, 913000, 978750, 1046500, 1116250, 1188000, 1261750,
-  1350000, 1440750, 1534000, 1629750, 1728000, 1828750, 1932000, 2037750, 2146000, 2256750,
-  2385000, 2516250, 2650500, 2787750, 2928000, 3071250, 3217500, 3366750, 3519000, 3674250,
-  3850000, 4029250, 4212000, 4398250, 4588000, 4781250, 4978000, 5178250, 5382000, 5589250,
-  5820000, 6054750, 6293500, 6536250, 6783000, 7033750, 7288500, 7547250, 7810000, 8076750,
-  8370000, 8667750, 8970000, 9276750, 9588000, 9903750, 10224000, 10548750, 10878000, 11211750,
-  11575000,
-];
+/** Curva de `niveles` niveles con costo del nivel n→n+1 = curva(n) (redondeado, mínimo 1). */
+export function curvaDesde(c: Curva, niveles: number): CurvaNiveles {
+  const umbrales = [0];
+  for (let n = 1; n < niveles; n++) umbrales.push(umbrales[n - 1] + Math.max(1, Math.round(evaluar(c, n))));
+  return new CurvaNiveles(umbrales);
+}
 
-export const CURVA_ESTANDAR = new CurvaNiveles(UMBRALES_ESTANDAR, 100);
+/** Curva sin nivel máximo: costo del nivel n→n+1 = curva(n). Búsqueda binaria sobre umbrales en caché. */
+export class CurvaNivelesInfinita {
+  private readonly umbrales: number[] = [0];
+  readonly costo: Curva;
+
+  constructor(costo: Curva) {
+    this.costo = costo;
+  }
+
+  private asegurar(nivel: number): void {
+    while (this.umbrales.length < nivel) {
+      const n = this.umbrales.length;
+      this.umbrales.push(this.umbrales[n - 1] + Math.max(1, Math.round(evaluar(this.costo, n))));
+    }
+  }
+
+  experienciaPara(nivel: number): number {
+    const n = Math.max(1, Math.floor(nivel));
+    this.asegurar(n);
+    return this.umbrales[n - 1];
+  }
+
+  costoDelNivel(nivel: number): number {
+    return this.experienciaPara(nivel + 1) - this.experienciaPara(nivel);
+  }
+
+  nivelDe(experiencia: number): { nivel: number; porcentaje: number } {
+    // Duplicar hasta pasarse y luego buscar: O(log n) aun con experiencia enorme.
+    let hi = 2;
+    while (this.experienciaPara(hi) <= experiencia && hi < 1e7) hi *= 2;
+    let lo = 1;
+    while (lo < hi - 1) {
+      const m = (lo + hi) >> 1;
+      if (this.experienciaPara(m) <= experiencia) lo = m;
+      else hi = m;
+    }
+    const desde = this.experienciaPara(lo), hasta = this.experienciaPara(lo + 1);
+    return { nivel: lo, porcentaje: ((experiencia - desde) / (hasta - desde)) * 100 };
+  }
+}

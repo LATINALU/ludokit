@@ -93,9 +93,3 @@ export function abrirConPiedad(azar: Azar, caja: DefCaja, estado: EstadoPiedad):
 export const textoProbabilidades = (caja: DefCaja, sufijo = "★"): string =>
   caja.prob.map((p, i) => `${caja.minimo + i + 1}${sufijo} ${Math.round(p * 1000) / 10} %`).join(" · ");
 
-export const CAJAS_EJEMPLO: Readonly<Record<string, DefCaja>> = {
-  basica: { minimo: 0, prob: [0.6, 0.3, 0.1], umbral: { aperturas: 10, nivel: 2 } },
-  intermedia: { minimo: 2, prob: [0.42, 0.32, 0.18, 0.08], umbral: { aperturas: 12, nivel: 5 } },
-  cofreMayor: { minimo: 5, prob: [0.48, 0.28, 0.16, 0.08], cuotas: { bloque: 50, minimos: { 8: 2, 7: 4 } } },
-  suprema: { minimo: 9, prob: [0.8, 0.17, 0.03], suave: { desde: 20, nivel: 11, porApertura: 0.06 } },
-};

@@ -2,7 +2,8 @@
 //
 // Para integrar en motores C++ (Unreal, motores propios, consolas, servidores de muy baja latencia) las mismas
 // reglas y los mismos números que la referencia TypeScript/Rust: azar determinista (PCG32, mulberry32), física 2D
-// por tiles con corrección de esquinas, daño con defensa de rendimiento decreciente, poder esperado y ruido.
+// por tiles con corrección de esquinas, curvas de escalado sin tope, daño con defensa de rendimiento decreciente,
+// modelo de poder esperado (configurable con curvas) y ruido.
 // Verificación: `pruebas.cpp` compara contra vectores/vectores.json (ver cpp/LEEME.md para compilar).
 //
 //   #include "ludokit.hpp"
@@ -14,6 +15,7 @@
 #include <cmath>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace ludokit {
@@ -173,24 +175,106 @@ inline void mover(Cuerpo& cu, const Grilla& g, float dt, bool atravesar = false,
 inline double mitigacion(double defensa, double k) { return k / (k + std::max(0.0, defensa)); }
 inline double redondearJs(double x) { return std::floor(x + 0.5); }
 
+// Curva de escalado: mismo formato y resultados que `nucleo/escalado.ts` (x = nivel, 1 = el primero). Sin tope.
+struct Curva {
+  enum class Tipo { Constante, Lineal, Potencia, Exponencial, Saturacion, Logistica, Tramos, Escalones, TopeSuave, Limitar, Producto, Suma, Desplazar, Escalar };
+  Tipo tipo = Tipo::Constante;
+  double a = 0, b = 0, c = 0;  // parámetros según el tipo (ver fábricas)
+  bool lineal = false;          // tramos: extrapolar con la última pendiente
+  std::vector<std::pair<double, double>> puntos;
+  std::vector<Curva> hijas;     // topeSuave/limitar/desplazar/escalar: una; producto/suma: varias
+
+  static Curva constante(double v) { Curva k; k.tipo = Tipo::Constante; k.a = v; return k; }
+  static Curva linealC(double base, double porNivel) { Curva k; k.tipo = Tipo::Lineal; k.a = base; k.b = porNivel; return k; }
+  static Curva potencia(double base, double exp) { Curva k; k.tipo = Tipo::Potencia; k.a = base; k.b = exp; return k; }
+  static Curva exponencial(double base, double razon) { Curva k; k.tipo = Tipo::Exponencial; k.a = base; k.b = razon; return k; }
+  static Curva saturacion(double mitad, double exp = 1) { Curva k; k.tipo = Tipo::Saturacion; k.a = mitad; k.b = exp; return k; }
+  static Curva logistica(double centro, double pendiente) { Curva k; k.tipo = Tipo::Logistica; k.a = centro; k.b = pendiente; return k; }
+  static Curva tramos(std::vector<std::pair<double, double>> p, bool extrapolarLineal = false) { Curva k; k.tipo = Tipo::Tramos; k.puntos = std::move(p); k.lineal = extrapolarLineal; return k; }
+  static Curva escalones(std::vector<std::pair<double, double>> p, double inicial = 0) { Curva k; k.tipo = Tipo::Escalones; k.puntos = std::move(p); k.a = inicial; return k; }
+  static Curva topeSuave(Curva h, double desde, double exp) { Curva k; k.tipo = Tipo::TopeSuave; k.hijas = {std::move(h)}; k.a = desde; k.b = exp; return k; }
+  static Curva limitar(Curva h, double mn, double mx) { Curva k; k.tipo = Tipo::Limitar; k.hijas = {std::move(h)}; k.a = mn; k.b = mx; return k; }
+  static Curva producto(std::vector<Curva> hs) { Curva k; k.tipo = Tipo::Producto; k.hijas = std::move(hs); return k; }
+  static Curva suma(std::vector<Curva> hs) { Curva k; k.tipo = Tipo::Suma; k.hijas = std::move(hs); return k; }
+  static Curva desplazar(Curva h, double d) { Curva k; k.tipo = Tipo::Desplazar; k.hijas = {std::move(h)}; k.a = d; return k; }
+  static Curva escalar(Curva h, double v) { Curva k; k.tipo = Tipo::Escalar; k.hijas = {std::move(h)}; k.a = v; return k; }
+
+  double evaluar(double x) const {
+    auto pend = [x](std::pair<double, double> p, std::pair<double, double> q) { const double dx = q.first - p.first; return dx == 0 ? q.second : p.second + (q.second - p.second) * (x - p.first) / dx; };
+    switch (tipo) {
+      case Tipo::Constante: return a;
+      case Tipo::Lineal: return a + b * (x - 1);
+      case Tipo::Potencia: return a * std::pow(std::max(0.0, x), b);
+      case Tipo::Exponencial: return a * std::pow(b, x - 1);
+      case Tipo::Saturacion: { const double d = std::pow(std::max(0.0, x - 1), b); return d / (d + std::pow(std::max(1e-9, a), b)); }
+      case Tipo::Logistica: { auto f = [this](double v) { return 1 / (1 + std::exp(-b * (v - a))); }; return std::max(0.0, (f(x) - f(1)) / (1 - f(1))); }
+      case Tipo::Tramos: {
+        if (puntos.empty()) return 0;
+        if (puntos.size() == 1) return puntos[0].second;
+        if (x <= puntos[0].first) return lineal ? pend(puntos[0], puntos[1]) : puntos[0].second;
+        for (size_t i = 1; i < puntos.size(); ++i) if (x <= puntos[i].first) return pend(puntos[i - 1], puntos[i]);
+        const size_t n = puntos.size() - 1;
+        return lineal ? pend(puntos[n - 1], puntos[n]) : puntos[n].second;
+      }
+      case Tipo::Escalones: { double v = a; for (const auto& p : puntos) if (x >= p.first) v = p.second; return v; }
+      case Tipo::TopeSuave: return x <= a ? hijas[0].evaluar(x) : hijas[0].evaluar(a) * std::pow(x / a, b);
+      case Tipo::Limitar: return std::min(b, std::max(a, hijas[0].evaluar(x)));
+      case Tipo::Producto: { double r = 1; for (const auto& h : hijas) r *= h.evaluar(x); return r; }
+      case Tipo::Suma: { double r = 0; for (const auto& h : hijas) r += h.evaluar(x); return r; }
+      case Tipo::Desplazar: return hijas[0].evaluar(x + a);
+      case Tipo::Escalar: return a * hijas[0].evaluar(x);
+    }
+    return 0;
+  }
+};
+
 struct Poder { double golpe, vida, defensa, resistencia; };
-
-inline Poder poderEsperado(double nivel) {
-  const double p = std::max(1.0, nivel), q = std::min(p, 24.0), hondo = p > 24 ? std::pow(p / 24, 0.8) : 1.0;
-  return {30 * std::pow(q, 0.93) * hondo, 115 * std::pow(q, 0.78) * hondo, 12 * std::pow(q, 0.92) * (p > 24 ? p / 24 : 1.0), std::min(0.12, 0.005 * p)};
-}
-
 struct StatsEnemigo { double vida, ataque, defensa, exp; };
+struct CurvaPoder { Curva golpe, vida, defensa, resistencia; };
 
-inline double pasaAlJugador(double nivel) {
-  const Poder pe = poderEsperado(nivel);
-  return mitigacion(pe.defensa, std::max(30.0, 1.5 * pe.defensa)) * (1 - pe.resistencia);
-}
+struct ReglasBalance {
+  double golpesParaMatar, golpesParaMorir, kEnemigo, kJugadorFactor, kJugadorMin;
+  Curva defensaEnemigo, expEnemigo;
+  double ritmoJugador;
+  Curva duracionJefe, aguanteJefe, defensaJefe, expJefe;
+  double multVidaJefe;
+};
 
-inline StatsEnemigo enemigoEsperado(double nivel) {
-  const double p = std::max(0.0, nivel - 1), def = 1 + 0.45 * p;
-  const Poder pe = poderEsperado(nivel);
-  return {redondearJs(6 * pe.golpe * mitigacion(def, 60)), redondearJs(pe.vida / (11 * pasaAlJugador(nivel))), redondearJs(def), redondearJs(1 + 0.8 * p)};
+// Modelo de balance por poder esperado (port de `balance.ModeloBalance`): sin nivel máximo.
+struct ModeloBalance {
+  CurvaPoder curva;
+  ReglasBalance reglas;
+
+  Poder poder(double nivel) const {
+    const double p = std::max(1.0, nivel);
+    return {curva.golpe.evaluar(p), curva.vida.evaluar(p), curva.defensa.evaluar(p), std::min(0.95, std::max(0.0, curva.resistencia.evaluar(p)))};
+  }
+  double kJugador(double nivel) const { return std::max(reglas.kJugadorMin, reglas.kJugadorFactor * poder(nivel).defensa); }
+  double pasaAlJugador(double nivel) const { const Poder pe = poder(nivel); return mitigacion(pe.defensa, kJugador(nivel)) * (1 - pe.resistencia); }
+
+  StatsEnemigo enemigo(double nivel, double pesoVida = 1, double pesoAtaque = 1) const {
+    const double n = std::max(1.0, nivel), def = reglas.defensaEnemigo.evaluar(n);
+    const Poder pe = poder(n);
+    return {redondearJs(reglas.golpesParaMatar * pe.golpe * mitigacion(def, reglas.kEnemigo) * pesoVida),
+            redondearJs(pe.vida / (reglas.golpesParaMorir * pasaAlJugador(n)) * pesoAtaque), redondearJs(def), redondearJs(reglas.expEnemigo.evaluar(n))};
+  }
+
+  StatsEnemigo jefe(double nivel, double* duracion = nullptr, double peso = 1) const {
+    const double n = std::max(1.0, nivel), def = reglas.defensaJefe.evaluar(n), dur = reglas.duracionJefe.evaluar(n);
+    const double aguante = std::max(1.0, reglas.aguanteJefe.evaluar(n));
+    const Poder pe = poder(n);
+    if (duracion) *duracion = dur;
+    return {redondearJs(pe.golpe * mitigacion(def, reglas.kEnemigo) * reglas.ritmoJugador * dur * peso * reglas.multVidaJefe),
+            redondearJs(pe.vida / (aguante * pasaAlJugador(n))), redondearJs(def), redondearJs(reglas.expJefe.evaluar(n))};
+  }
+};
+
+// Pesos de rareza por nivel sin tope: mezcla primero → ultimo con una curva de progreso 0..1.
+inline std::vector<double> pesosRareza(const std::vector<double>& primero, const std::vector<double>& ultimo, const Curva& progreso, double nivel, const std::vector<double>& factor = {}) {
+  const double k = std::min(1.0, std::max(0.0, progreso.evaluar(std::max(1.0, nivel))));
+  std::vector<double> r(primero.size());
+  for (size_t i = 0; i < r.size(); ++i) r[i] = (primero[i] + (ultimo[i] - primero[i]) * k) * (i < factor.size() ? factor[i] : 1.0);
+  return r;
 }
 
 // ------------------------------------------------------------------ Ruido

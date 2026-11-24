@@ -1,8 +1,8 @@
 [package]
 name = "ludokit"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2021"
-description = "Núcleo de alto rendimiento de ludokit: azar determinista, física por tiles, hash espacial, A*, Verlet, daño y balance. Sin dependencias; compila a nativo y a WebAssembly."
+description = "Núcleo de alto rendimiento de ludokit: azar determinista, física por tiles, hash espacial, A*, Verlet, curvas de escalado, daño y balance. Sin dependencias; compila a nativo y a WebAssembly."
 license-file = "../LICENSE"
 publish = false
 

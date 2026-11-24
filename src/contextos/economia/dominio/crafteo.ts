@@ -8,6 +8,7 @@ import type { Azar } from "../../../nucleo/azar.ts";
 import { exito, fallo, type Resultado } from "../../../nucleo/resultado.ts";
 import type { Inventario } from "../../inventario/dominio/inventario.ts";
 import type { Billetera } from "./billetera.ts";
+import { evaluar, type Curva } from "../../../nucleo/escalado.ts";
 
 export interface Receta {
   readonly id: string;
@@ -66,34 +67,34 @@ export interface Pacto {
   readonly maldicion: Readonly<Record<string, number>>;
 }
 
-export const PACTOS_EJEMPLO: readonly Pacto[] = [
-  { id: "hambre", nombre: "Filo hambriento", bono: { danioCritico: 0.4 }, maldicion: { danioRecibido: 0.15 } },
-  { id: "cristal", nombre: "Cristal roto", bono: { danio: 0.3 }, maldicion: { danioRecibido: 0.25 } },
-  { id: "frio", nombre: "Sangre fría", bono: { velocidadAtaque: 0.15 }, maldicion: { vida: -0.12 } },
-  { id: "sed", nombre: "Sed antigua", bono: { roboVida: 0.05 }, maldicion: { curacion: -0.4 } },
-  { id: "lengua", nombre: "Lengua de fuego", bono: { danioHabilidad: 0.3 }, maldicion: { costoHabilidad: 0.25 } },
-];
 
 export type ModoTemplado = "normal" | "seguro" | "riesgo";
 
 export interface ReglasTemplado {
+  /** Grado máximo (Infinity = sin tope). */
   readonly maximo: number;
   /** Desde este nivel se elige modo (antes, siempre "normal"). */
   readonly nivelEleccion: number;
+  /** Materiales y moneda del siguiente grado según el grado actual + 1. */
+  readonly materiales: Curva;
+  readonly moneda: Curva;
+  /** Multiplicadores del modo seguro (caro) y del modo riesgo (barato). */
+  readonly seguro: { readonly materiales: number; readonly moneda: number };
+  readonly riesgo: { readonly materiales: number; readonly moneda: number };
+  /** Atenuación de pactos (objeto especial): bonos × bono, maldiciones × maldicion. */
+  readonly atenuar?: { readonly bono: number; readonly maldicion: number };
 }
 
-export const REGLAS_TEMPLADO: ReglasTemplado = { maximo: 10, nivelEleccion: 5 };
-
 /** Costo del siguiente grado: materiales y moneda según nivel y modo. */
-export function costoTemplado(nivelActual: number, modo: ModoTemplado, r: ReglasTemplado = REGLAS_TEMPLADO): { materiales: number; moneda: number } {
-  const base = { materiales: 1 + Math.floor(nivelActual / 2), moneda: 50 * (nivelActual + 1) * (nivelActual >= r.nivelEleccion ? 2 : 1) };
+export function costoTemplado(nivelActual: number, modo: ModoTemplado, r: ReglasTemplado): { materiales: number; moneda: number } {
+  const base = { materiales: Math.max(1, Math.round(evaluar(r.materiales, nivelActual + 1))), moneda: Math.round(evaluar(r.moneda, nivelActual + 1)) };
   if (nivelActual < r.nivelEleccion || modo === "normal") return base;
-  if (modo === "seguro") return { materiales: base.materiales * 2, moneda: base.moneda * 3 };
-  return { materiales: Math.max(1, Math.ceil(base.materiales / 2)), moneda: Math.ceil(base.moneda / 2) };
+  const m = modo === "seguro" ? r.seguro : r.riesgo;
+  return { materiales: Math.max(1, Math.ceil(base.materiales * m.materiales)), moneda: Math.ceil(base.moneda * m.moneda) };
 }
 
 /** Templar: siempre sube. En modo riesgo sella un pacto que la pieza aún no tenga. */
-export function templar(nivelActual: number, modo: ModoTemplado, pactosPrevios: readonly string[], azar: Azar, pactos: readonly Pacto[] = PACTOS_EJEMPLO, r: ReglasTemplado = REGLAS_TEMPLADO): Resultado<{ nivel: number; pacto: Pacto | null }, "al-maximo"> {
+export function templar(nivelActual: number, modo: ModoTemplado, pactosPrevios: readonly string[], azar: Azar, pactos: readonly Pacto[], r: ReglasTemplado): Resultado<{ nivel: number; pacto: Pacto | null }, "al-maximo"> {
   if (nivelActual >= r.maximo) return fallo("al-maximo");
   let pacto: Pacto | null = null;
   if (modo === "riesgo" && nivelActual >= r.nivelEleccion) {
@@ -103,14 +104,14 @@ export function templar(nivelActual: number, modo: ModoTemplado, pactosPrevios: 
   return exito({ nivel: nivelActual + 1, pacto });
 }
 
-/** Suma bonos y maldiciones de una lista de pactos (`atenuar`: maldiciones a la mitad y bonos +25 %). */
-export function sumarPactos(ids: readonly string[], pactos: readonly Pacto[] = PACTOS_EJEMPLO, atenuar = false): Record<string, number> {
+/** Suma bonos y maldiciones de una lista de pactos (`atenuar`: multiplicadores de bono y maldición). */
+export function sumarPactos(ids: readonly string[], pactos: readonly Pacto[], atenuar?: { readonly bono: number; readonly maldicion: number }): Record<string, number> {
   const r: Record<string, number> = {};
   for (const id of ids) {
     const p = pactos.find((x) => x.id === id);
     if (!p) continue;
-    for (const [k, v] of Object.entries(p.bono)) r[k] = (r[k] ?? 0) + v * (atenuar ? 1.25 : 1);
-    for (const [k, v] of Object.entries(p.maldicion)) r[k] = (r[k] ?? 0) + v * (atenuar ? 0.5 : 1);
+    for (const [k, v] of Object.entries(p.bono)) r[k] = (r[k] ?? 0) + v * (atenuar?.bono ?? 1);
+    for (const [k, v] of Object.entries(p.maldicion)) r[k] = (r[k] ?? 0) + v * (atenuar?.maldicion ?? 1);
   }
   return r;
 }

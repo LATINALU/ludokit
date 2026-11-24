@@ -7,11 +7,18 @@ import { TablaAmenaza } from "../src/contextos/combate/dominio/amenaza.ts";
 import { GestorEstados } from "../src/contextos/combate/dominio/estados.ts";
 import { MedidorEstilo } from "../src/contextos/combate/dominio/estilo.ts";
 import { cambioDeNivel, sortearAfijos } from "../src/contextos/combate/dominio/afijos.ts";
-import { enemigoEsperado, jefeEsperado, poderEsperado, simularPelea, veredicto, kJugador } from "../src/contextos/balance/dominio/poder-esperado.ts";
-import { probabilidadesRareza, RAREZA_ESTANDAR, tirarRareza } from "../src/contextos/botin/dominio/rareza.ts";
+import { ModeloBalance, simularPelea, veredicto } from "../src/contextos/balance/dominio/poder-esperado.ts";
+import { BALANCE_ACCION, PODER_RPG, RAREZA_ARPG, EQUIPO_ARPG } from "../src/modelos/piezas.ts";
+import { curva } from "../src/nucleo/escalado.ts";
+import { probabilidadesRareza, tirarRareza } from "../src/contextos/botin/dominio/rareza.ts";
 import { generarPieza, mejorarPieza, perfeccion, type DefClase } from "../src/contextos/botin/dominio/equipo.ts";
-import { soltarBotin, TABLAS_EJEMPLO } from "../src/contextos/botin/dominio/fichas.ts";
-import { abrirConPiedad, CAJAS_EJEMPLO, piedadInicial } from "../src/contextos/coleccion/dominio/piedad.ts";
+import { soltarBotin, type TablaFichas } from "../src/contextos/botin/dominio/fichas.ts";
+import { abrirConPiedad, piedadInicial, type DefCaja } from "../src/contextos/coleccion/dominio/piedad.ts";
+
+const CAJAS: Readonly<Record<string, DefCaja>> = {
+  basica: { minimo: 0, prob: [0.6, 0.3, 0.1], umbral: { aperturas: 10, nivel: 2 } },
+  mayor: { minimo: 5, prob: [0.48, 0.28, 0.16, 0.08], cuotas: { bloque: 50, minimos: { 8: 2, 7: 4 } } },
+};
 import { ArbolTalentos } from "../src/contextos/progresion/dominio/talentos.ts";
 import { Dialogo, MundoVariables } from "../src/contextos/narrativa/dominio/dialogo.ts";
 import { AzarSemilla } from "../src/nucleo/azar.ts";
@@ -128,54 +135,64 @@ test("estilo: variedad, rangos y corte por ventana", () => {
 });
 
 test("afijos deterministas y contrarreloj", () => {
-  assert.deepEqual(sortearAfijos(42, 7).map((a) => a.id), sortearAfijos(42, 7).map((a) => a.id));
-  assert.equal(sortearAfijos(42, 7).length, 3);
-  assert.equal(cambioDeNivel(50, 100), 3);
-  assert.equal(cambioDeNivel(0, 100), -1);
+  const AFIJOS = ["a", "b", "c", "d", "e", "f"].map((id, i) => ({ id, nombre: id, descripcion: "", desde: 1 + i }));
+  const umbrales = [2, 4, 7, 10];
+  assert.deepEqual(sortearAfijos(42, 7, AFIJOS, umbrales).map((a) => a.id), sortearAfijos(42, 7, AFIJOS, umbrales).map((a) => a.id));
+  assert.equal(sortearAfijos(42, 7, AFIJOS, umbrales).length, 3);
+  const escalones = [[0.4, 3], [0.2, 2], [0, 1]] as const;
+  assert.equal(cambioDeNivel(50, 100, escalones, -1), 3);
+  assert.equal(cambioDeNivel(0, 100, escalones, -1), -1);
 });
 
-test("balance por poder esperado: comunes en ~6 golpes, te matan en ~11, jefe dura lo pedido", () => {
-  for (const n of [1, 6, 12, 24, 40]) {
-    const pe = poderEsperado(n);
-    const e = enemigoEsperado(n);
-    const jugador = { vida: pe.vida, ataque: pe.golpe, defensa: pe.defensa, k: kJugador(n), ritmo: 2 };
-    const r = simularPelea(jugador, { vida: e.vida, ataque: e.ataque, defensa: e.defensa, k: 60, ritmo: 1 });
-    assert.ok(r.golpesAaB >= 5 && r.golpesAaB <= 7, `nivel ${n}: ${r.golpesAaB} golpes para matar`);
-    assert.ok(r.golpesBaA >= 10 && r.golpesBaA <= 12, `nivel ${n}: ${r.golpesBaA} golpes para morir`);
-    const j = jefeEsperado(n);
-    const rj = simularPelea(jugador, { vida: j.vida, ataque: j.ataque, defensa: j.defensa, k: 60, ritmo: 1 });
-    assert.ok(Math.abs(rj.segundosA - j.duracion * 1.92) / (j.duracion * 1.92) < 0.05, `jefe ${n}: ${rj.segundosA}s`);
+test("balance por poder esperado: golpes para matar/morir y duración del jefe en CUALQUIER nivel", () => {
+  const m = new ModeloBalance(PODER_RPG, BALANCE_ACCION);
+  for (const n of [1, 6, 12, 24, 40, 100, 500]) {
+    const pe = m.poder(n);
+    const e = m.enemigo(n);
+    const jugador = { vida: pe.vida, ataque: pe.golpe, defensa: pe.defensa, k: m.kJugador(n), ritmo: 2 };
+    const r = simularPelea(jugador, { vida: e.vida, ataque: e.ataque, defensa: e.defensa, k: BALANCE_ACCION.kEnemigo, ritmo: 1 });
+    assert.ok(Math.abs(r.golpesAaB - BALANCE_ACCION.golpesParaMatar) <= 1, `nivel ${n}: ${r.golpesAaB} golpes para matar`);
+    assert.ok(Math.abs(r.golpesBaA - BALANCE_ACCION.golpesParaMorir) <= 1, `nivel ${n}: ${r.golpesBaA} golpes para morir`);
+    const j = m.jefe(n);
+    const rj = simularPelea(jugador, { vida: j.vida, ataque: j.ataque, defensa: j.defensa, k: BALANCE_ACCION.kEnemigo, ritmo: 1 });
+    const esperado = j.duracion * BALANCE_ACCION.multVidaJefe;
+    assert.ok(Math.abs(rj.segundosA - esperado) / esperado < 0.05, `jefe ${n}: ${rj.segundosA}s`);
   }
-  assert.equal(veredicto(0, 1), "listo");
-  assert.equal(veredicto(10, 12), "peligroso");
+  assert.ok(m.poder(1000).golpe > m.poder(100).golpe, "la curva no tiene techo");
+  assert.equal(m.tabla(1, 10).length, 10);
+  assert.equal(veredicto(0, 0), "listo");
+  assert.equal(veredicto(10, 100), "peligroso");
 });
 
 test("rareza por nivel: curva, suerte y mínima que eleva sin inflar el máximo", () => {
-  const p1 = probabilidadesRareza(RAREZA_ESTANDAR, 1);
-  const p24 = probabilidadesRareza(RAREZA_ESTANDAR, 24);
-  assert.ok(p24[3] > p1[3] * 5);
+  const p1 = probabilidadesRareza(RAREZA_ARPG, 1);
+  const p60 = probabilidadesRareza(RAREZA_ARPG, 60);
+  assert.ok(p60[3] > p1[3] * 5);
+  const p1000 = probabilidadesRareza(RAREZA_ARPG, 1000);
+  assert.ok(p1000[5] > p60[5], "sigue mejorando sin tope de niveles");
   const az = new Pcg32(7);
   let miticos = 0;
-  for (let i = 0; i < 20000; i++) if (tirarRareza(az, RAREZA_ESTANDAR, 1, { minima: 4 }) === 5) miticos++;
+  for (let i = 0; i < 20000; i++) if (tirarRareza(az, RAREZA_ARPG, 1, { minima: 4 }) === 5) miticos++;
   assert.ok(miticos < 40, `con mínima legendaria el mítico sigue siendo raro (${miticos}/20000)`);
-  const conSuerte = probabilidadesRareza(RAREZA_ESTANDAR, 10, 100);
-  assert.ok(conSuerte[5] > probabilidadesRareza(RAREZA_ESTANDAR, 10)[5]);
+  const conSuerte = probabilidadesRareza(RAREZA_ARPG, 10, 100);
+  assert.ok(conSuerte[5] > probabilidadesRareza(RAREZA_ARPG, 10)[5]);
 });
 
 test("equipo: tiradas, perfección, afijos por rareza y mejora", () => {
   const clases: DefClase[] = [{ id: "pecho", principal: { vida: 6, defensa: 2 }, afijos: { critico: 0.4, robo: 0.1, velocidad: 0.3, ataque: 1 } }];
   const az = new Pcg32(11);
-  const p = generarPieza(az, clases, 10, { minima: 3 });
+  const p = generarPieza(az, clases, 10, EQUIPO_ARPG, { minima: 3 });
   assert.ok(p.rareza >= 3 && Object.keys(p.stats).length >= 5);
   assert.ok(perfeccion(p) >= 0 && perfeccion(p) <= 1);
-  const m = mejorarPieza(p)!;
+  const m = mejorarPieza(p, EQUIPO_ARPG)!;
   assert.equal(m.mejora, 1);
   assert.ok(m.stats.vida > p.stats.vida);
 });
 
 test("botín por fichas: resolutor del juego y garantizadas", () => {
   const az = new Pcg32(5);
-  const b = soltarBotin(az, TABLAS_EJEMPLO.jefe, { nivel: 5, minima: 2, suerte: 0, mult: 1 }, (f) => `${f}!`);
+  const jefe: TablaFichas = { modo: "cada-uno", garantizadas: ["equipo"], entradas: [["carta", 0.6], ["unico", 0.05]], moneda: [180, 270], monedaPorNivel: curva.lineal(1, 0.6) };
+  const b = soltarBotin(az, jefe, { nivel: 5, minima: 2, suerte: 0, mult: 1 }, (f) => `${f}!`);
   assert.ok(b.premios.includes("equipo!"));
   assert.ok(b.moneda >= 180 * 3.4 && b.moneda <= 270 * 3.4 + 1);
 });
@@ -185,7 +202,7 @@ test("piedad: umbral, cuotas por bloque y probabilidad suave", () => {
   const e = piedadInicial();
   let maxSeguidas = 0, seguidas = 0;
   for (let i = 0; i < 500; i++) {
-    const r = abrirConPiedad(az, CAJAS_EJEMPLO.basica, e);
+    const r = abrirConPiedad(az, CAJAS.basica, e);
     seguidas = r.nivel >= 2 ? 0 : seguidas + 1;
     maxSeguidas = Math.max(maxSeguidas, seguidas);
   }
@@ -193,7 +210,7 @@ test("piedad: umbral, cuotas por bloque y probabilidad suave", () => {
   const e2 = piedadInicial();
   const conteo: Record<number, number> = {};
   for (let i = 0; i < 50; i++) {
-    const r = abrirConPiedad(new Pcg32(1000 + i), { ...CAJAS_EJEMPLO.cofreMayor, prob: [1, 0, 0, 0] }, e2);
+    const r = abrirConPiedad(new Pcg32(1000 + i), { ...CAJAS.mayor, prob: [1, 0, 0, 0] }, e2);
     conteo[r.nivel] = (conteo[r.nivel] ?? 0) + 1;
   }
   assert.ok((conteo[8] ?? 0) >= 2 && (conteo[7] ?? 0) >= 4, JSON.stringify(conteo));

@@ -97,7 +97,7 @@ test("misiones: repetibles, límite de activas y guardado", () => {
 });
 
 test("puntos de habilidad: 5 por nivel nuevo, tope nivel-1, máximo y reinicio", () => {
-  const p = new PuntosHabilidad();
+  const p = new PuntosHabilidad({ puntosPorNivel: 5, tope: (n) => Math.max(0, n - 1), factor: { golpe: 1, defensa: 1 / 3, hp: 4 / 3 } });
   assert.equal(p.alcanzarNivel(5), 20);
   assert.equal(p.alcanzarNivel(3), 0, "bajar y subir no regala");
   assert.deepEqual(p.asignar(0, "golpe", 5, "max"), { ok: true, valor: 4 });

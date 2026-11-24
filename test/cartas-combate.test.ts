@@ -6,20 +6,25 @@ import {
   fusionar,
   mejorar,
   probabilidadesVisibles,
-  PROB_FUSION_NORMAL_ESTANDAR,
-  RAREZA_PARTIDA,
+  probabilidadDesdeCurva,
+  costoFusion,
   tirarRareza,
+  type TablaRareza,
   type CartaBase,
   type ReglasFusion,
 } from "../src/contextos/coleccion/dominio/cartas.ts";
 import { GestorBuffs, type DefinicionBuff } from "../src/contextos/combate/dominio/buffs.ts";
-import { probabilidadReal, RANGOS_DROP_ESTANDAR, tablaPorNivel, tirarDrop } from "../src/contextos/botin/dominio/drops.ts";
-import { BASE_ESTANDAR, componerStats, desglose } from "../src/contextos/combate/dominio/stats.ts";
+import { probabilidadReal, tablaPorNivel, tirarDrop } from "../src/contextos/botin/dominio/drops.ts";
+import { componerStats, desglose } from "../src/contextos/combate/dominio/stats.ts";
+import { curva } from "../src/nucleo/escalado.ts";
+
+const RAREZA_PARTIDA: TablaRareza = [[0, 0.63], [1, 0.32], [2, 0.04], [3, 0.01]];
+const PROB_FUSION = probabilidadDesdeCurva(curva.tramos([[0, 1], [4, 1], [5, 0.3], [6, 0]]));
 import { azarFijo } from "./util.ts";
 
 const reglas = (azar = azarFijo(0.5)): ReglasFusion<CartaBase> => ({
   azar,
-  probabilidad: (_tipo, nivel) => PROB_FUSION_NORMAL_ESTANDAR.get(nivel),
+  probabilidad: PROB_FUSION,
   nivelMaximo: 11,
   personajesPosibles: () => [7, 8, 9],
   crear: (tipo, nivel, personaje) => ({ tipo, nivel, personaje }),
@@ -57,13 +62,15 @@ test("fusión: carta de éxito asegura; reglas de entrada", () => {
 });
 
 test("mejora: suma lo mismo a todo sin pasar el máximo", () => {
-  const r = mejorar({ golpe: 10, patada: 49 }, { golpe: 50, patada: 50 }, azarFijo(0.3));
+  const MEJORA: TablaRareza = [[1, 0.2], [2, 0.3], [3, 0.3], [4, 0.1], [5, 0.1]];
+  const r = mejorar({ golpe: 10, patada: 49 }, { golpe: 50, patada: 50 }, azarFijo(0.3), MEJORA);
   assert.deepEqual(r, { ok: true, valor: { incremento: 2, stats: { golpe: 12, patada: 50 } } });
-  assert.deepEqual(mejorar({ golpe: 50 }, { golpe: 50 }, azarFijo(0)), { ok: false, error: "al-maximo" });
+  assert.deepEqual(mejorar({ golpe: 50 }, { golpe: 50 }, azarFijo(0), MEJORA), { ok: false, error: "al-maximo" });
+  assert.equal(costoFusion(curva.exponencial(100, 3), 2), 900);
 });
 
 test("stats por capas", () => {
-  const capas = { base: BASE_ESTANDAR, carta: { golpe: 310, hp: 2740 }, equipo: { golpe: 30 } };
+  const capas = { base: { golpe: 200, hp: 3500 }, carta: { golpe: 310, hp: 2740 }, equipo: { golpe: 30 } };
   const total = componerStats(Object.values(capas));
   assert.equal(total.golpe, 540);
   assert.equal(total.hp, 6240);
@@ -114,9 +121,9 @@ test("drops: uno-y-tirar da 0 o 1 objeto; probabilidad real", () => {
 });
 
 test("drops: tabla por nivel del monstruo", () => {
-  const tabla = tablaPorNivel(RANGOS_DROP_ESTANDAR, 64);
-  assert.equal(tabla(1), 38);
-  assert.equal(tabla(6), 39);
-  assert.equal(tabla(68), 63);
-  assert.equal(tabla(90), 64);
+  const tabla = tablaPorNivel([[5, 1], [10, 2], [20, 3]], 4);
+  assert.equal(tabla(1), 1);
+  assert.equal(tabla(6), 2);
+  assert.equal(tabla(20), 3);
+  assert.equal(tabla(90), 4);
 });

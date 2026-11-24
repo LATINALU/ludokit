@@ -138,6 +138,3 @@ export class Gremio {
     this.puntos = Math.max(0, this.puntos + puntos);
   }
 }
-
-/** Costo y requisitos de fundación de ejemplo. */
-export const FUNDAR_GREMIO_ESTANDAR = { nivelMinimo: 10, costo: 1_000_000 } as const;

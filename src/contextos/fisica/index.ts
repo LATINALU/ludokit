@@ -5,3 +5,4 @@ export * from "./dominio/perfil.ts";
 export * from "./dominio/plataformero.ts";
 export * from "./dominio/proyectil.ts";
 export * from "./dominio/vista-superior.ts";
+export * from "./dominio/controlador3d.ts";

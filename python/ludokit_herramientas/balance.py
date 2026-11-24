@@ -1,17 +1,28 @@
 """Simulador de balance: tabla nivel a nivel del poder esperado del jugador, los enemigos y jefes derivados, y
 cuántos golpes/segundos dura cada pelea. Exporta CSV para abrirlo en una planilla y discutir números con el
-equipo de diseño ANTES de tocar el juego.
+equipo de diseño ANTES de tocar el juego. El modelo (curvas del jugador + reglas) se lee de un JSON con el mismo
+formato que `ModeloBalance` en TypeScript; sin `--modelo` usa el de los vectores compartidos. No hay nivel máximo:
+`--hasta` puede ser 50, 500 o 5000.
 
-    python -I -m ludokit_herramientas.balance --hasta 40 --csv balance.csv
+    python -I -m ludokit_herramientas.balance --hasta 100 --csv balance.csv [--modelo modelo.json]
 """
 from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
 import sys
+from pathlib import Path
 
-from .nucleo import enemigo_esperado, jefe_esperado, mitigacion, poder_esperado
+from .nucleo import ModeloBalance, mitigacion
+
+VECTORES = Path(__file__).resolve().parents[2] / "vectores" / "vectores.json"
+
+
+def modelo_por_defecto() -> ModeloBalance:
+    m = json.loads(VECTORES.read_text(encoding="utf-8"))["modelo_balance"]
+    return ModeloBalance(m["curva"], m["reglas"])
 
 
 def pelea(vida_a, atk_a, def_a, k_a, ritmo_a, vida_b, atk_b, def_b, k_b, ritmo_b) -> dict:
@@ -22,15 +33,17 @@ def pelea(vida_a, atk_a, def_a, k_a, ritmo_a, vida_b, atk_b, def_b, k_b, ritmo_b
     return {"golpes_para_matar": golpes_ab, "golpes_para_morir": golpes_ba, "segundos_matar": golpes_ab / ritmo_a, "segundos_morir": golpes_ba / ritmo_b}
 
 
-def tabla(hasta: int) -> list[dict]:
+def tabla(hasta: int, modelo: ModeloBalance | None = None) -> list[dict]:
+    m = modelo or modelo_por_defecto()
+    ke = m.r["kEnemigo"]
     filas = []
     for n in range(1, hasta + 1):
-        pe = poder_esperado(n)
-        k = max(30, 1.5 * pe["defensa"])
-        e = enemigo_esperado(n)
-        j = jefe_esperado(n)
-        pc = pelea(pe["vida"], pe["golpe"], pe["defensa"], k, 2, e["vida"], e["ataque"], e["defensa"], 60, 1)
-        pj = pelea(pe["vida"], pe["golpe"], pe["defensa"], k, 2, j["vida"], j["ataque"], j["defensa"], 60, 1)
+        pe = m.poder(n)
+        k = m.k_jugador(n)
+        e = m.enemigo(n)
+        j = m.jefe(n)
+        pc = pelea(pe["vida"], pe["golpe"], pe["defensa"], k, 2, e["vida"], e["ataque"], e["defensa"], ke, 1)
+        pj = pelea(pe["vida"], pe["golpe"], pe["defensa"], k, 2, j["vida"], j["ataque"], j["defensa"], ke, 1)
         filas.append({
             "nivel": n,
             "jugador_golpe": round(pe["golpe"], 1), "jugador_vida": round(pe["vida"], 1), "jugador_defensa": round(pe["defensa"], 1),
@@ -42,10 +55,15 @@ def tabla(hasta: int) -> list[dict]:
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--hasta", type=int, default=24)
+    p.add_argument("--hasta", type=int, default=60)
+    p.add_argument("--modelo", help="JSON {curva, reglas} con curvas de ludokit")
     p.add_argument("--csv")
     a = p.parse_args()
-    filas = tabla(a.hasta)
+    modelo = None
+    if a.modelo:
+        d = json.loads(Path(a.modelo).read_text(encoding="utf-8"))
+        modelo = ModeloBalance(d["curva"], d["reglas"])
+    filas = tabla(a.hasta, modelo)
     if a.csv:
         with open(a.csv, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=list(filas[0]))

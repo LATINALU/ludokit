@@ -1,8 +1,9 @@
 import { test } from "node:test";
+import { curva } from "../src/nucleo/escalado.ts";
 import assert from "node:assert/strict";
 import { PlataformaNula, RegistroLogros, type PlataformaLogros } from "../src/contextos/progresion/dominio/logros.ts";
 import { estadoConjuntos, efectosConjuntos, modificadoresConjuntos, Engarces, fundirRunas, type DefConjunto } from "../src/contextos/botin/dominio/conjuntos.ts";
-import { craftear, costoTemplado, faltantes, sumarPactos, templar, vecesPosibles, type Receta } from "../src/contextos/economia/dominio/crafteo.ts";
+import { craftear, costoTemplado, faltantes, sumarPactos, templar, vecesPosibles, type Receta, type Pacto } from "../src/contextos/economia/dominio/crafteo.ts";
 import { eventoAnual, eventosActivos, hastaProximaSemana, LUNES_BASE, ProgresoPeriodico, rotacion, rotacionBarajada, semanaDe } from "../src/contextos/progresion/dominio/calendario.ts";
 import { CatalogoRasgos, heredarRasgos, probMutacion } from "../src/contextos/coleccion/dominio/herencia.ts";
 import { ordenSiembra, premioRonda, Torneo } from "../src/contextos/competitivo/dominio/torneo.ts";
@@ -78,12 +79,16 @@ test("crafteo todo o nada y templado sin fallos con pactos", () => {
   const r2 = craftear({ id: "x", ingredientes: [[5, 1]], resultado: { objeto: 7, cantidad: 2 } }, lleno, b);
   assert.ok(!r2.ok && r2.error === "sin-espacio");
   assert.equal(lleno.contar(5), 1, "no consumió nada");
-  assert.deepEqual(costoTemplado(6, "seguro"), { materiales: 8, moneda: 2100 });
-  assert.deepEqual(costoTemplado(6, "riesgo"), { materiales: 2, moneda: 350 });
-  const t = templar(6, "riesgo", [], new Pcg32(1));
+  const TEMPLADO = { maximo: 10, nivelEleccion: 5, materiales: curva.lineal(1, 0.5), moneda: curva.lineal(100, 100), seguro: { materiales: 2, moneda: 3 }, riesgo: { materiales: 0.5, moneda: 0.5 } };
+  const PACTOS: Pacto[] = [{ id: "cristal", nombre: "Cristal", bono: { danio: 0.3 }, maldicion: { danioRecibido: 0.25 } }, { id: "frio", nombre: "Frío", bono: { celeridad: 0.15 }, maldicion: { vida: -0.12 } }];
+  assert.deepEqual(costoTemplado(6, "normal", TEMPLADO), { materiales: 4, moneda: 700 });
+  assert.deepEqual(costoTemplado(6, "seguro", TEMPLADO), { materiales: 8, moneda: 2100 });
+  assert.deepEqual(costoTemplado(6, "riesgo", TEMPLADO), { materiales: 2, moneda: 350 });
+  const t = templar(6, "riesgo", [], new Pcg32(1), PACTOS, TEMPLADO);
   assert.ok(t.ok && t.valor.nivel === 7 && t.valor.pacto !== null);
-  assert.equal(templar(10, "normal", [], new Pcg32(1)).ok, false);
-  assert.deepEqual(sumarPactos(["cristal"], undefined, true), { danio: 0.375, danioRecibido: 0.125 });
+  assert.equal(templar(10, "normal", [], new Pcg32(1), PACTOS, TEMPLADO).ok, false);
+  assert.equal(templar(500, "normal", [], new Pcg32(1), PACTOS, { ...TEMPLADO, maximo: Infinity }).ok, true, "sin tope si el juego lo pide");
+  assert.deepEqual(sumarPactos(["cristal"], PACTOS, { bono: 1.25, maldicion: 0.5 }), { danio: 0.375, danioRecibido: 0.125 });
 });
 
 test("calendario: semanas, rotaciones, eventos anuales y progreso periódico", () => {

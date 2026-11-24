@@ -1,21 +1,32 @@
 # ludokit
 
-**Una librería de dominio para construir videojuegos de cualquier género: desde un plataformas de un jugador hasta
-un RPG multijugador masivo.**
+**Una librería de mecánicas de videojuegos para cualquier género: RPG de acción, MMO, MOBA, shooters 3D,
+extracción, supervivencia, zombis, carreras, estrategia, turnos, cartas, plataformas... y las mezclas entre ellos.**
 
-ludokit reúne en un solo lugar las reglas, los sistemas y las herramientas que se repiten en casi todos los juegos:
-física y movimiento que se sienten bien, combate de RPG, inteligencia artificial, botín y economía, generación
-procedural de mundos, sensación de impacto (*game feel*), audio generado por código, netcode autoritativo y guardado
-seguro. Todo está separado del motor gráfico, así que sirve igual en un juego web, en Godot, en Unity, en Unreal, en
-un motor propio o en un servidor.
+ludokit reúne las **mecánicas puras** que se repiten en la mayoría de los juegos (movimiento, disparos, combate,
+habilidades, botín, progresión, economía, IA, hordas, visión, turnos, vehículos, red, guardado) escritas como reglas
+sin gráficos y **sin números de ningún juego concreto**. Encima de eso trae **58 modelos de género combinables**, un
+**asistente de preguntas** que detecta qué juego estás haciendo y arma la configuración inicial, **catálogos de datos
+propios** (armas y calibres, vehículos, enemigos, clases) y un **protocolo de feedback** para que arte y sonido
+consuman la simulación. Sirve igual en la web, en Godot, Unity, Unreal, un motor propio o un servidor.
 
 ```ts
-import { Pcg32, fisica, combate, mundo } from "ludokit";
+import { Pcg32, curva, modelos, disparos, datos, balance } from "ludokit";
 
-const azar = new Pcg32(42);                                       // todo el azar sale de una semilla
-const nivel = mundo.generarNivel(42, 1, { salas: 18 });           // un nivel jugable, siempre el mismo con la misma semilla
-const jugador = new fisica.Plataformero(40, 200);                 // coyote time, búfer, salto variable, dash, bordes...
-const golpe = combate.calcularDanio({ ataque: 30, probCritico: 0.1 }, { defensa: 12 }, azar);
+// 1) ¿Qué juego estás haciendo? El asistente recomienda y combina modelos.
+const r = modelos.recomendar({ nucleo: ["disparar", "supervivencia"], perspectiva: "primera", ambientacion: "zombis" });
+r.combinacion.ids;   // ["shooter-extraccion", "mod-zombis"]
+r.plan;              // pasos concretos con las clases a usar
+
+// 2) Mecánicas puras con datos propios.
+const azar = new Pcg32(42);
+const ficha = datos.armas.aplicarAccesorios(datos.armas.ficha("carabina-556"), ["compensador", "mira-4x"]);
+const arma = new disparos.Arma(ficha.arma, 120, { azar });
+const bala = datos.armas.municion("5.56x45", "perforante");      // daño y penetración por energía
+
+// 3) Escalado sin tope: el nivel 1, el 100 y el 10 000 funcionan igual.
+const m = new balance.ModeloBalance(modelos.piezas.PODER_RPG, modelos.piezas.BALANCE_ACCION);
+m.enemigo(10_000);
 ```
 
 ---
@@ -23,320 +34,308 @@ const golpe = combate.calcularDanio({ ataque: 30, probCritico: 0.1 }, { defensa:
 ## Índice
 
 1. [Qué es y qué no es](#1-qué-es-y-qué-no-es)
-2. [Principios de diseño](#2-principios-de-diseño)
-3. [Estructura del repositorio](#3-estructura-del-repositorio)
-4. [Instalación y primeros pasos](#4-instalación-y-primeros-pasos)
-5. [Arquitectura en capas (DDD)](#5-arquitectura-en-capas-ddd)
-6. [Catálogo completo de módulos](#6-catálogo-completo-de-módulos)
-7. [Recetas por género](#7-recetas-por-género)
-8. [Multijugador: del cooperativo al MMO](#8-multijugador-del-cooperativo-al-mmo)
-9. [Varios lenguajes: Rust, Python, C++ y shaders](#9-varios-lenguajes-rust-python-c-y-shaders)
-10. [Ejemplos ejecutables](#10-ejemplos-ejecutables)
-11. [Pruebas y verificación](#11-pruebas-y-verificación)
-12. [Cómo extender la librería](#12-cómo-extender-la-librería)
-13. [Crear tu propia versión](#13-crear-tu-propia-versión)
-14. [Licencia](#14-licencia)
-15. [Preguntas frecuentes](#15-preguntas-frecuentes)
+2. [Empezar: el asistente y los modelos](#2-empezar-el-asistente-y-los-modelos)
+3. [Principios de diseño](#3-principios-de-diseño)
+4. [Estructura del repositorio](#4-estructura-del-repositorio)
+5. [Instalación](#5-instalación)
+6. [Catálogo de módulos](#6-catálogo-de-módulos)
+7. [Datos propios](#7-datos-propios)
+8. [Feedback: arte, sonido y sensación](#8-feedback-arte-sonido-y-sensación)
+9. [Multijugador](#9-multijugador)
+10. [Varios lenguajes](#10-varios-lenguajes)
+11. [Ejemplos](#11-ejemplos)
+12. [Pruebas, determinismo y verificación](#12-pruebas-determinismo-y-verificación)
+13. [Para asistentes de IA](#13-para-asistentes-de-ia)
+14. [Cómo extender la librería](#14-cómo-extender-la-librería)
+15. [Crear tu propia versión y licencia](#15-crear-tu-propia-versión-y-licencia)
+16. [Preguntas frecuentes](#16-preguntas-frecuentes)
 
----
+**Todo lo que existe, archivo por archivo: [docs/INDICE.md](docs/INDICE.md)** (generado desde el código).
 
 ## 1. Qué es y qué no es
 
-**Es** una caja de herramientas de sistemas de juego, escrita como **dominio puro**: funciones y clases que reciben
+**Es** una caja de herramientas de sistemas de juego escrita como **dominio puro**: funciones y clases que reciben
 datos y devuelven datos, sin tocar la pantalla, el teclado, la red ni el disco. Tu juego conecta esas piezas con su
 motor de render, su audio y su interfaz.
 
-**No es** un motor gráfico ni un editor. No dibuja nada por sí sola, aunque trae lo necesario para que dibujar sea
-fácil: operaciones de imagen *pixel-perfect*, atlas, mapas de normales, shaders listos y un motor de efectos
-visuales por código.
+**No es** un motor gráfico ni un editor, y **no es la copia de ningún juego**: no trae tablas, textos ni estadísticas
+de juegos existentes. Las reglas reciben su configuración; los números de partida viven aparte (modelos y datos) y se
+reemplazan sin tocar código.
 
-Qué ganas al usarla:
+- **Sin topes artificiales**: todo lo que escala (vida, rareza, experiencia, dificultad, oro) es una **curva** que
+  acepta cualquier nivel. Nada tiene "último piso" salvo que tu juego lo pida.
+- **Determinismo**: con la misma semilla, el mismo resultado en cualquier PC, en el servidor y en una repetición
+  (protegido con golden master del estado y vectores compartidos entre lenguajes).
+- **Balance derivado, no adivinado**: el modelo de *poder esperado* calcula enemigos y jefes desde cuántos golpes
+  deberían aguantar y dar.
+- **Lista para red**: el mismo código corre en el cliente (predicción) y en el servidor (autoridad), con
+  compensación de lag para disparos.
 
-- **Sistemas probados**: 151 pruebas en TypeScript más pruebas en Rust y Python que comprueban que los números
-  coinciden entre lenguajes.
-- **Determinismo**: con la misma semilla, el mismo resultado en cualquier PC, en el servidor y en una repetición.
-- **Balance derivado, no adivinado**: un modelo de *poder esperado* calcula la vida y el daño de enemigos y jefes
-  a partir de cuántos golpes deberían aguantar y dar.
-- **Lista para red**: el mismo código de simulación corre en el cliente (predicción) y en el servidor (autoridad).
-- **Datos fuera del código**: perfiles de movimiento, tablas de botín, curvas de nivel, afijos y cajas son objetos
-  que se reemplazan, no código que se reescribe.
+## 2. Empezar: el asistente y los modelos
 
-## 2. Principios de diseño
+```bash
+npm run crear            # preguntas → modelos sugeridos → mi-juego/ludokit.juego.json + mi-juego/PLAN.md
+npm run crear -- --modelos shooter-extraccion,supervivencia-sandbox,mod-zombis   # combinar sin preguntas
+```
 
-1. **Azar y tiempo inyectados.** Ninguna regla llama a `Math.random()` ni a `Date.now()`: recibe un `Azar`
-   (`Pcg32`, `AzarSemilla`) y un `Reloj`. Así hay repeticiones, tests reproducibles y bugs que se pueden investigar.
-2. **Paso fijo.** La simulación avanza en pasos iguales (60 Hz) y el dibujo interpola. Los efectos hacen sub-pasos a
-   120 Hz y las animaciones van en escalones de 12 fps.
-3. **Resultados, no excepciones.** Los casos esperados (`"sin-fondos"`, `"en-recarga"`) se devuelven como
-   `{ ok: false, error }`. Las excepciones quedan para los bugs.
-4. **Todo o nada** en lo que mueve valor (compras, intercambios, crafteo): validar → entregar → cobrar.
-5. **Eventos de dominio.** El dominio no reproduce sonidos ni crea partículas: emite `salto`, `aterrizaje` o
-   `golpe`, y tu juego decide qué hacer con cada uno.
-6. **Servidor autoritativo** de todo lo que da recompensa. El cliente predice, pero no decide.
-7. **Guardado versionado** con migraciones, suma de integridad y respaldo: un guardado viejo o corrupto nunca hace
-   crashear el juego.
+Las **12 preguntas** (qué hace el jugador, perspectiva, tiempo real o turnos, con quién juega, cómo es una sesión, qué
+lo hace más fuerte, qué pasa al morir, realismo, ambientación, enemigos, economía, si el contenido es infinito)
+puntúan los modelos y deducen **modificadores**. El resultado es una configuración combinada (reglas, módulos, datos
+sugeridos, mecánicas y conflictos resueltos) y un plan de implementación con las clases exactas.
 
-## 3. Estructura del repositorio
+**58 modelos** (lista completa con módulos en [docs/INDICE.md](docs/INDICE.md#modelos-por-género)):
+
+| Familia | Modelos base |
+|---|---|
+| RPG de acción y botín | `arpg-botin`, `arpg-temporadas`, `looter-shooter`, `hack-and-slash`, `souls` |
+| MMO | `mmo-tematico`, `mmo-accion`, `cooperativo-mazmorras` |
+| MOBA y arenas | `moba`, `arena-heroes` |
+| Shooters | `shooter-arena`, `shooter-tactico`, `shooter-extraccion`, `batalla-real`, `shooter-heroes`, `shooter-coberturas`, `disparos-naves` |
+| Zombis y hordas | `hordas-zombis`, `guerra-zombis`, `supervivientes-hordas` |
+| Supervivencia | `supervivencia-sandbox`, `supervivencia-zombi`, `extraccion-2d`, `colonia`, `granja-vida` |
+| Roguelites | `roguelite-accion`, `roguelike-turnos` |
+| Plataformas y lucha | `metroidvania`, `plataformas-precision`, `lucha-plataformas`, `lucha-1v1` |
+| Turnos, cartas, estrategia | `jrpg`, `tactico-grilla`, `mazo-roguelike`, `cartas-coleccionables`, `gacha`, `rts`, `defensa-torres`, `defensa-laberinto`, `incremental` |
+| Vehículos | `carreras-arcade`, `carreras-simulacion`, `rally`, `combate-vehicular` |
+| Otros | `sigilo`, `terror-supervivencia`, `mundo-abierto-rpg`, `aventura-narrativa` |
+| **Modificadores** | `mod-zombis`, `mod-militar`, `mod-supervivencia`, `mod-hardcore`, `mod-extraccion`, `mod-cooperativo`, `mod-competitivo`, `mod-servicio-vivo`, `mod-infinito`, `mod-mundo-persistente` |
+
+```ts
+const juego = modelos.combinar([modelos.modelo("carreras-arcade"), modelos.modelo("combate-vehicular"), modelos.modelo("mod-competitivo")]);
+juego.reglas;      // reglas fusionadas en profundidad
+juego.conflictos;  // [{ ruta: "marcador", modelos: [...], ganador: "..." }]: decidir a conciencia
+```
+
+## 3. Principios de diseño
+
+1. **Azar y tiempo inyectados.** Ninguna regla llama a `Math.random()` ni a `Date.now()` (un test lo verifica).
+2. **Paso fijo** (60 Hz) con dibujo interpolado.
+3. **Curvas como datos** (`nucleo/escalado.ts`): `lineal`, `potencia`, `exponencial`, `saturacion`, `logistica`,
+   `tramos`, `escalones`, `topeSuave`, `limitar`, `producto`, `suma`, `desplazar`, `escalar`. Serializables a JSON y
+   evaluadas igual en TypeScript, Rust, C++ y Python.
+4. **Resultados, no excepciones** para los casos esperados.
+5. **Todo o nada** en lo que mueve valor.
+6. **Eventos de dominio** hacia afuera; el **protocolo de feedback** los traduce para arte y sonido.
+7. **Servidor autoritativo** de todo lo que da recompensa.
+8. **Guardado versionado** con migraciones y respaldo.
+9. **Capas estrictas**: el dominio no importa del motor, los gráficos, la red ni la infraestructura (un test lo
+   verifica).
+
+## 4. Estructura del repositorio
 
 ```
 ludokit/
-├─ src/                  Implementación de referencia en TypeScript (Node ≥ 23.6 o cualquier bundler)
-│  ├─ nucleo/            Azar (PCG32, mulberry32), Reloj, Resultado, eventos, geometría, tablas de datos, i18n
-│  ├─ motor/             Bucle de paso fijo, ECS, FSM jerárquica, tiempo y tweens, entrada, cámara, animador, pool,
-│  │                     consola de depuración, controles táctiles
-│  ├─ espacial/          Hash espacial, colisiones (AABB, círculo, SAT, barrido continuo), raycast DDA
-│  ├─ contextos/         18 contextos de dominio (ver sección 6), cada uno con dominio/ y, si hace falta, aplicacion/
-│  ├─ grafico/           Imagen RGBA pixel-perfect, color OKLab + LUT, atlas, normales, curvas, fuente 3×5, PNG
-│  ├─ animacion/         Esqueleto procedural de 21 puntos con IK y pistas de poses
-│  ├─ red/               Netcode completo + red simulada para probarlo
-│  └─ infraestructura/   Persistencia: memoria, localStorage y archivos con escritura atómica
-├─ rust/                 Núcleo de alto rendimiento en Rust (nativo y WebAssembly)
-├─ cpp/                  Núcleo header-only en C++17
-├─ python/               Herramientas: sprites, validador, balance, catálogo, diff de datos, hitboxes
-├─ shaders/              6 shaders WGSL validados + su versión GLSL ES 3.0 generada; compilador con naga
-├─ vectores/             Vectores de prueba compartidos por todos los lenguajes
-├─ terceros/vfx/         Motor de efectos visuales por código y criaturas por receta (licencia MIT propia)
-├─ ejemplos/             Plataformas, servidor MMO, economía, generación de sonidos
+├─ src/
+│  ├─ nucleo/            Azar (PCG32), reloj, Resultado, eventos, geometría 2D, vec3, curvas de escalado, i18n
+│  ├─ motor/             Bucle fijo, ECS, FSM, tiempo, entrada, cámara, animador, pool, consola, táctil
+│  ├─ espacial/          Colisiones 2D (AABB, SAT, barrido, DDA) y 3D (esfera, caja, cápsula, rayos sobre escena)
+│  ├─ contextos/         28 contextos de dominio (sección 6)
+│  ├─ modelos/           58 modelos combinables, piezas de reglas, combinar, asistente
+│  ├─ datos/             Catálogos propios: armas, vehículos, criaturas, RPG
+│  ├─ grafico/ animacion/ red/ infraestructura/
+├─ herramientas/         crear.ts (asistente) · indice.ts (genera docs/INDICE.md y docs/catalogo.json)
+├─ rust/                Núcleo de alto rendimiento + ABI C (include/ludokit.h) + adaptador C# (integraciones/)
+├─ cpp/ python/          Ports verificados contra vectores/ (Python también usa el núcleo Rust por ctypes)
+├─ shaders/              WGSL validados + GLSL generado
+├─ vectores/             vectores.json (entre lenguajes) · golden.json (estado de simulaciones)
+├─ terceros/vfx/         Motor de VFX por código (licencia MIT propia)
+├─ ejemplos/             shooter 3D, plataformas, MMO, economía, sonidos
 ├─ test/                 Pruebas de TypeScript
-├─ docs/                 Arquitectura, guía de implementación por género, guía de lenguajes
-├─ verificar.sh/.ps1     Verificación completa en todos los lenguajes
-└─ LICENSE               Licencia LLVA 1.0 (sección 14)
+├─ docs/                 IA, índice, arquitectura, determinismo, guía de implementación, lenguajes
+├─ AGENTS.md CLAUDE.md llms.txt   Para asistentes de IA
+└─ LICENSE               LLVA 1.0
 ```
 
-## 4. Instalación y primeros pasos
+## 5. Instalación
 
-**Requisitos:** Node.js 23.6 o más nuevo. Node ejecuta TypeScript directamente, sin compilar. Para el resto de las
-piezas: Rust (opcional), Python 3 con Pillow y NumPy (opcional, para las herramientas de arte) y un compilador de
-C++17 (opcional).
+Requisitos: **Node.js ≥ 23.6** (ejecuta TypeScript directo). Opcional: Rust, Python 3 (Pillow y NumPy para arte),
+un compilador de C++17.
 
 ```bash
 git clone https://github.com/LATINALU/ludokit.git
 cd ludokit
-npm install                    # solo herramientas de desarrollo (TypeScript para el chequeo de tipos)
-npm test                       # 151 pruebas
-npm run tipos                  # chequeo estricto de tipos
-node ejemplos/plataformas.ts   # un plataformas completo, sin ventana, en la consola
+npm install
+npm test               # 190 pruebas
+npm run crear          # asistente
+node ejemplos/shooter3d.ts
 ```
 
-**Usarla en tu proyecto:**
+En un juego web con bundler: `npm i github:LATINALU/ludokit` e importar `ludokit` (también `ludokit/modelos` y
+`ludokit/datos`). En un servidor Node, copiar `src/` o compilar con `tsc`.
 
-- **Copiar la carpeta** `src/` (o solo los contextos que necesites: cada uno depende únicamente de `nucleo/` y, a
-  veces, de otro contexto).
-- **Con un bundler** (Vite, esbuild, webpack) en un juego web: `npm i github:LATINALU/ludokit` e importar
-  `ludokit`; el bundler compila los `.ts`. (Node no ejecuta TypeScript que esté dentro de `node_modules`: para
-  un servidor en Node, copia `src/` a tu proyecto o compílala con `tsc`.)
-
-**El esqueleto mínimo de cualquier juego:**
+Esqueleto mínimo:
 
 ```ts
 import { Pcg32, motor } from "ludokit";
-
 const azar = new Pcg32(semilla);
-const entrada = new motor.Entrada();                       // acciones remapeables: "saltar", "atacar"...
-addEventListener("keydown", (e) => entrada.fijarFisico(e.code, true));
-addEventListener("keyup", (e) => entrada.fijarFisico(e.code, false));
-
-const bucle = new motor.BucleFijo({
-  actualizar(dt) { entrada.muestrear(dt); /* reglas del juego */ },
-  dibujar(alfa) { /* render interpolado con alfa */ },
-});
+const entrada = new motor.Entrada();
+const bucle = new motor.BucleFijo({ actualizar(dt) { entrada.muestrear(dt); /* reglas */ }, dibujar(alfa) { /* render */ } });
 requestAnimationFrame(function cuadro(t) { bucle.avanzar(t / 1000); requestAnimationFrame(cuadro); });
 ```
 
-## 5. Arquitectura en capas (DDD)
+## 6. Catálogo de módulos
 
-```
-TU JUEGO  (render, audio, UI, escenas del motor que elijas)
-   │  consume eventos de dominio · dibuja interpolando · no contiene reglas
-contextos/<x>/aplicacion/   casos de uso: orquestan dominio + puertos (repositorios, reloj)
-contextos/<x>/dominio/      reglas puras
-motor/ espacial/ grafico/ animacion/ red/
-nucleo/                     kernel compartido
-infraestructura/            adaptadores (persistencia)
-```
-
-- Las dependencias solo apuntan hacia abajo: el dominio no conoce el motor ni el disco.
-- Cada **contexto delimitado** tiene su propio lenguaje, y los nombres pueden repetirse entre contextos. Por eso la
-  raíz los exporta como espacios de nombres: `fisica.Plataformero`, `combate.Habilidades`, `red.ServidorAutoritativo`.
-- Los **casos de uso** (`casoComprar`, `resolverMuerte`, `generarNivel`) muestran el patrón de una operación
-  completa: cargar el agregado, aplicar la regla, guardar y registrar en una transacción.
-
-Detalle completo, con el flujo de un paso de simulación y el flujo de red: **[docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)**.
-
-## 6. Catálogo completo de módulos
-
-### Base
+Detalle de cada archivo y exportación: **[docs/INDICE.md](docs/INDICE.md)**.
 
 | Módulo | Qué resuelve |
 |---|---|
-| `nucleo` | `Pcg32`/`derivarSemilla` y `AzarSemilla` (azar determinista), `elegirPonderado`/`elegirPorPeso`, `RelojManual`, `Resultado`, `ColaEventos`, `V2`/`Rect`, `Tabla` con validación de referencias, lector de datos por bloques, `Textos` (i18n con respaldo y plurales) |
-| `motor` | `BucleFijo` (paso fijo con interpolación y tope anti espiral), `MundoEcs` (ECS con sparse sets, generaciones, fases y comandos diferidos), `MaquinaEstados` jerárquica, `Agenda`, `Cooldown`, easing, `Entrada` por acciones con búfer, `Camara` (zona muerta, anticipo, límites, sacudida por trauma, sub-píxel), `Animador` compatible con Aseprite, `Pool`, `Consola` de depuración con guardado aislado, `ControlesTactiles` |
-| `espacial` | `HashEspacial` (consultas, cercanos, pares), colisiones AABB, círculo, círculo-caja, SAT para polígonos, barrido continuo sin túnel, rayos contra cajas y círculos, `raycastGrilla` (DDA), `hayVision` |
+| (raíz) `nucleo` | `Pcg32`, `derivarSemilla`, `Resultado`, eventos, `V2`, **`vec3`**, **`curva`/`evaluar`**, tablas con validación, i18n |
+| `motor` | `BucleFijo`, ECS, FSM jerárquica, `Entrada` con búfer, `Camara`, `Animador`, `Pool`, consola, táctil |
+| `espacial` | Hash espacial, colisiones 2D, raycast DDA, **colisiones 3D** (`lanzarRayo`, `lanzarRayoTodos`, cápsulas) |
+| `fisica` | Grilla de tiles, `Plataformero`, `MovilSuperior`, proyectiles, imán, **`Controlador3D`** (FPS/TPS: aceleración, strafe aéreo, sprint, agacharse, deslizar, coyote, búfer, doble salto, pendientes) |
+| **`disparos`** | `Arma` (cadencia, semi/auto/ráfaga/cerrojo, cargador + recámara, recarga táctica/vacía/por cartucho, calentamiento, sobrecalentamiento, encasquillado), `Dispersion` (postura + bloom), `Retroceso` (patrón + recuperación), `asistirMira`, `resolverDisparo` (zonas, caída por distancia, penetración de paredes), `resolverBlindaje` (clases y penetración), proyectil balístico 3D, adelanto, `SaludPorPartes` (sangrado, fracturas) |
+| `combate` | `Atributos` (plano/aumentado/más), `calcularDanio`, `Habilidades`, amenaza, estados, buffs, estilo, afijos, **`Lanzador`** (casteo, canalización, GCD, cola, empuje, interrupción por escuela), **recursos** (maná con pausa, furia, estamina con agotamiento, cargas), **`RendimientosDecrecientes`**, **`elegirObjetivo`** (prioridades de torre/TD) y **`tabObjetivo`** |
+| `balance` | **`ModeloBalance`** (poder esperado desde curvas, enemigos y jefes de cualquier nivel), `simularPelea`, grados, **`NivelesDificultad`** (dificultad infinita), `escalarAlJugador`, `escalarPorJugadores`, `DificultadAdaptativa` |
+| `botin` | Tablas de drop (3 modos), **rareza por nivel sin tope**, equipo con tiradas y afijos, fichas, conjuntos |
+| `progresion` | Curvas de nivel (con tope o **infinitas**), recompensas, misiones, talentos, logros, calendario, **`Paragon`**, `prestigiar`, **`Descanso`**, **`Maestria`** por uso, **`Reputacion`** con facciones, **`PaseTemporada`** |
+| `encuentros` | `CerebroJefe`, `EncuentroOleadas` con sellos (códigos), **`Director`** de ritmo (acumular/pico/relajar, presupuesto por tipo) |
+| **`moba`** | Oleadas por carril con asedio/súper, estructuras con calentamiento y protección, oro por último golpe y racha, experiencia compartida, reaparición, rangos de habilidad |
+| **`vision`** | `NieblaGuerra` con línea de visión, conos de visión, `Sospecha` (sigilo), propagación de ruido |
+| **`grupo`** | Grupos y roles, buscador de grupo, necesidad/codicia, turnos, botín personal, bloqueos periódicos, contribución por daño |
+| **`supervivencia`** | Necesidades con umbrales, temperatura corporal, durabilidad, nodos de recolección, ciclo día/noche, infección, frescura |
+| **`turnos`** | Iniciativa, cola por tiempo con vista previa, puntos de acción, alcance en grilla, probabilidad táctica con cobertura y flanqueo |
+| **`mazo`** | Robo/mano/descarte/agotadas, energía, retener, mulligan, búsqueda, curva de costos, probabilidad hipergeométrica |
+| **`estrategia`** | Selección, grupos de control, formaciones, cola de producción, recolectores, economía de TD, construcción sin bloquear el camino |
+| **`carreras`** | `Vehiculo` (curva de par, marchas, neumáticos con pico de deslizamiento, derrape, freno de mano, nitro), `Carrera` (controles, vueltas, posiciones), `Fantasma`, rubber banding |
+| `competitivo` | Ranking, Elo, salas, torneos, **puntos de captura**, **marcador/tickets**, **zona segura** de batalla real, reapariciones por oleada |
+| **`feedback`** | Protocolo de eventos → órdenes de impacto, sonido y efectos; estilos arcade/estándar/táctico/terror/accesible |
+| `ia`, `navegacion`, `mundo` | Árboles, utilidad, steering, ataques por fases, IA que aprende · A*, campos de flujo · ruido, mazmorras llave/cerradura, cuevas, plantillas |
+| `economia`, `inventario`, `coleccion`, `roguelite`, `narrativa`, `social` | Billetera, tienda, comercio, subasta, crafteo, templado, **compras reales (recibos verificados en servidor, idempotentes) y anuncios con recompensa** · inventario, vencimientos · gacha con piedad · extracción y legados · diálogos, **memoria narrativa y disparadores de consecuencias** · gremios y correo |
+| `feel`, `audio`, `grafico`, `animacion` | Hitstop, trauma, muelles, Verlet, partículas · síntesis y música por capas · imagen, color, atlas, PNG · IK y esqueleto |
+| `red`, `persistencia` | Servidor autoritativo, predicción, interpolación, interés, delta, **rebobinado 3D** · guardado versionado |
 
-### Movimiento, mundo e IA
+## 7. Datos propios
 
-| Módulo | Qué resuelve |
-|---|---|
-| `fisica` | `Grilla` de tiles con autotile de 4 bits, `Cuerpo` + `mover` (ejes separados, plataformas de un sentido, pinchos, corrección de esquinas), `Plataformero` (coyote time, búfer, salto variable, ímpetu, dash, paredes, colgarse de bordes, planeo, caída rápida), perfiles y arquetipos de personaje, `MovilSuperior` (8 direcciones), `Proyectil` y tiro en arco, botín con imán |
-| `navegacion` | A* genérico con montículo binario, grafo de grilla de 4 u 8 direcciones sin cortar esquinas, suavizado por línea de visión, `CampoFlujo` para hordas |
-| `ia` | Árboles de comportamiento, IA por utilidad con curvas de respuesta, steering (buscar, llegar, perseguir, evadir, deambular, bandada, evitar obstáculos), `AtaquePorFases` (anticipa → golpe → recupera), **IA que aprende del jugador** (`RastreadorHabitos`, `decidirEspejo`) y dificultad dinámica |
-| `mundo` | Ruido (valor, gradiente, fBm, tileable, deformado), `generarMazmorra` con llave y cerradura validado por punto fijo, `construirSala` con recorrido garantizado, cuevas por autómata celular, plantillas ASCII con marcadores y espejo, `MapaExplorado` (niebla de guerra), caso de uso `generarNivel` |
+`import { datos } from "ludokit"`: catálogos **propios** (no copiados de ningún juego), pensados para copiar y cambiar.
 
-### Combate y encuentros
+- `datos.armas`: 15 calibres con física pública aproximada (masa, velocidad), 5 tipos de munición, conversión propia
+  energía → daño y penetración, 8 blindajes por clase (1-6), 18 arquetipos de armas (pistolas a antimaterial,
+  escopetas por cartucho, ametralladoras) con dispersión, retroceso y caída de daño, 10 accesorios por ranura.
+- `datos.vehiculos`: 9 arquetipos (kart, compacto, deportivo, muscle, superdeportivo, rally, camión, fórmula, derrape)
+  con curva de par, marchas y agarre; 8 superficies.
+- `datos.criaturas`: 24 arquetipos (zombis, soldados, fantasía, bestias, máquinas) con pesos para el balance,
+  conducta y costo para el director.
+- `datos.rpg`: conjuntos de stats por género, 12 clases con rol y recurso, afinidades por tipo de daño, estados,
+  rarezas.
 
-| Módulo | Qué resuelve |
-|---|---|
-| `combate` | `Atributos` con modificadores en orden fijo (plano → aumentado → más → fijar) por fuente y derivados, `Recurso` (vida, maná), `calcularDanio` (tipos, resistencias, penetración, crítico, bloqueo), robo de vida con reserva, `Habilidades` (costo, recarga, cargas, recarga global, lanzamiento, canalización, interrupción), `TablaAmenaza` (aggro de grupo), `GestorEstados` (apilado, ticks, rendimiento decreciente de control), buffs, medidor de estilo D→SSS, afijos deterministas |
-| `encuentros` | `CerebroJefe` (repertorio de ataques por datos, fases por vida, cada ataque avisado, nunca repite, recargas), `EncuentroOleadas` (variantes, élites, contrarreloj con tiempo extra, anti-bloqueo), premios con sellos de mérito y racha |
-| `balance` | Modelo de **poder esperado** (`poderEsperado`, `enemigoEsperado`, `jefeEsperado`), `simularPelea`, puntaje requerido por nivel, grados de enemigo |
+## 8. Feedback: arte, sonido y sensación
 
-### Progresión, botín y economía
+El dominio emite `feedback.EventoJuego` (glosario fijo: golpe, crítico, aterrizaje, disparo, botín, alerta...) con
+intensidad 0..1. `new feedback.TraductorFeedback(feedback.ESTILO_TACTICO).traducirPaso(eventos)` devuelve órdenes para
+`feel.DirectorImpacto` (hitstop, sacudida, destello), para el audio (`audio.BancoSonidos`: nombre, volumen, tono,
+prioridad) y para los efectos del motor (efecto, escala, color por rareza). Fusiona eventos repetidos del mismo paso,
+pesa menos lo ajeno y trae **`ESTILO_ACCESIBLE`** (sin destellos ni sacudidas). Guías para arte, sonido, interfaz por
+género y monetización responsable: [docs/IA.md](docs/IA.md).
 
-| Módulo | Qué resuelve |
-|---|---|
-| `progresion` | Curvas de nivel, recompensa de fin de partida, bonificaciones, misiones, puntos de habilidad, árbol de talentos, **logros** con contadores y puente a plataformas, **calendario** de contenido semanal y eventos anuales |
-| `botin` | Tablas de botín en 3 modos con su probabilidad real, rareza por nivel con suerte y mínima garantizada, generador de equipo con tiradas, perfección, afijos y mejoras, botín por fichas, **conjuntos** con bonos de 2/4/6 piezas, engarces y fusión de runas |
-| `coleccion` | Rareza tipo gacha con porcentajes visibles, fusión 3→1, mejora, cajas con **piedad** (umbral, cuotas por bloque, probabilidad suave), herencia de rasgos (resonancia, mutación, transmutación) |
-| `inventario` | Inventario por pestañas con pilas (todo o nada), objetos con vencimiento, suscripciones, cajas con contenido |
-| `economia` | Billetera multi-moneda, tienda con catálogo (lo que se muestra es lo que se cobra), venta, intercambio seguro entre jugadores, casa de subastas, **crafteo** y **templado**, caso de uso `casoComprar` con libro contable |
-| `roguelite` | Riesgo y extracción con **legados** (lo que llevabas te espera donde caíste), modo infinito con piedad, casos de uso de muerte y recuperación |
-| `narrativa` | Diálogos ramificados con condiciones, efectos, redirección, variables en el texto y validación del grafo |
-| `social` · `competitivo` | Gremios y correo con adjuntos · ranking con temporadas, Elo, salas, emparejador y torneos por llaves |
-
-### Sensación, audio, gráficos y animación
-
-| Módulo | Qué resuelve |
-|---|---|
-| `feel` | `DirectorImpacto` (hitstop, trauma, cámara lenta, destello), remate de jefe en 3 tiempos, muelles amortiguados, squash & stretch que conserva el área, cuerdas y capas Verlet, campos de fuerza, partículas en arrays (SoA) |
-| `audio` | Síntesis de sonido por código (tono, ruido, FM, grano, barrido), impactos por 7 materiales × 3 fuerzas, sonido de botín según la rareza, banco con variantes y antirepetición, exportación a WAV, **música adaptativa** por capas que cambia al compás |
-| `grafico` | Imagen RGBA, reescalado pixel-perfect con contorno, silueta de golpe, giro de tono, color OKLab, paletas, gradación por LUT, empaquetador de atlas, mapas de normales automáticos, curvas centrípetas y estelas, fuente pixel 3×5 con números de daño, codificador PNG, parallax |
-| `animacion` | IK de 2 huesos (2D y 3D con vector polo), esqueleto humanoide de 21 puntos resuelto desde manos y pies, orden de dibujo por profundidad, pistas de poses a 12 fps |
-
-### Red y persistencia
-
-| Módulo | Qué resuelve |
-|---|---|
-| `red` | Servidor autoritativo por ticks, predicción y reconciliación del cliente, interpolación de entidades remotas, áreas de interés con histéresis, compresión delta, sincronización de reloj, compensación de lag, limitador de tasa, protocolo binario, red simulada con latencia y pérdida |
-| `persistencia` | `Guardado` (versión, integridad, migraciones, respaldo, apartar corruptos), repositorios y almacenes (memoria, localStorage, archivos atómicos) |
-
-## 7. Recetas por género
-
-La guía **[docs/GUIA-IMPLEMENTACION.md](docs/GUIA-IMPLEMENTACION.md)** explica, para cada género, qué contextos
-tomar, en qué orden construir y con qué código arrancar:
-
-| Género | Contextos principales |
-|---|---|
-| Plataformas / metroidvania | `fisica`, `mundo`, `ia`, `combate`, `feel` |
-| ARPG / roguelike con botín | `fisica.MovilSuperior`, `navegacion`, `combate`, `botin`, `roguelite` |
-| RPG por turnos / táctico | `motor.MaquinaEstados`, `navegacion`, `combate`, `narrativa`, `progresion` |
-| Cartas coleccionables / gacha | `coleccion`, `economia`, `competitivo` |
-| Tycoon / granja / simulación | `motor.Agenda`, `inventario`, `economia`, `progresion`, `mundo` |
-| Shooter / bullet hell | `espacial`, `motor.Pool`, `ia`, `encuentros`, `feel` |
-| Cooperativo / competitivo en línea | todo lo anterior + `red` |
-| MMO / RPG multijugador | `red`, `combate.TablaAmenaza`, `economia` (casos de uso), `social`, `persistencia` |
-
-El orden de construcción que se recomienda para cualquier proyecto es: bucle y entrada → control del jugador hasta
-que se sienta bien → una mecánica central completa → balance por poder esperado → contenido como datos validados →
-guardado versionado → *game feel* → red (si aplica, desde el principio).
-
-## 8. Multijugador: del cooperativo al MMO
+## 9. Multijugador
 
 ```
 CLIENTE                                               SERVIDOR (ServidorAutoritativo)
 Entrada → PrediccionCliente.entrada() ──── input ───► descarta entradas viejas, duplicadas o imposibles
-         (aplica ya, guarda historial)                aplica ≤ N entradas por jugador por tick, simula el mundo
-reconciliar(snapshot) ◄──────── snapshot + ackSeq ──── solo lo que cada jugador ve (área de interés)
-BuferInterpolacion (otros jugadores, −100 ms)          delta contra el último estado que el cliente confirmó
+reconciliar(snapshot) ◄──────── snapshot + ackSeq ──── solo lo que cada jugador ve (área de interés), en delta
+BuferInterpolacion (otros jugadores, −100 ms)          disparos: rebobinar(escena, HistorialPosiciones3D, ...)
 ```
 
-1. Escribe la simulación del jugador como una **función pura** `aplicar(estado, entrada, dt)` y úsala igual en el
-   cliente y en el servidor.
-2. Prueba siempre con la red simulada `RED_MALA` (120 ms de latencia, 40 ms de variación, 5 % de pérdida y
-   paquetes desordenados). La prueba de integración del repositorio lo hace con dos clientes.
-3. Para un MMO: servidores de zona con `GestorInteres` y servicios transaccionales (tienda, correo, gremios) con
-   libro contable. `node ejemplos/mmo.ts 500` mide el costo por tick y el ancho de banda con 500 jugadores.
+Probar siempre con la red simulada `RED_MALA`. `node ejemplos/mmo.ts 500` mide el costo por tick con 500 jugadores.
 
-## 9. Varios lenguajes: Rust, Python, C++ y shaders
+## 10. Varios lenguajes
 
-Cada lenguaje cumple un rol, y todos reproducen los mismos números gracias a `vectores/vectores.json`:
+| Carpeta | Rol | Verificación |
+|---|---|---|
+| `src/` TypeScript | Referencia completa | 190 pruebas + tipos estrictos + golden master |
+| `rust/` | **Núcleo de alto rendimiento**: rayos 3D con grilla + DDA, penetración, campo de flujo y hordas SoA (paralelas y deterministas), niebla de guerra, azar, física, hash espacial, A*, Verlet, curvas y balance, ruido; **ABI C** para Unity, Godot, Unreal y Python | 14 pruebas (igualdad con TS, grilla = lineal, paralelo = secuencial, ABI) + benchmark |
+| `python/` | Herramientas: arte, validación, **balance desde curvas** (`--modelo`), catálogo, diff, hitboxes, **núcleo Rust por ctypes** (`nativo.py`) | 11 pruebas |
+| `cpp/` C++17 | Header-only para Unreal y motores propios: azar, física, **curvas y `ModeloBalance`**, ruido | `cpp/pruebas.cpp` (todavía sin compilar: ver `cpp/LEEME.md`) |
+| `shaders/` | WGSL → GLSL | validados con naga |
 
-| Carpeta | Lenguaje | Rol | Verificación |
-|---|---|---|---|
-| `src/` | TypeScript | Referencia completa | 151 pruebas + tipos estrictos |
-| `rust/` | Rust | Núcleo rápido para servidores y WebAssembly: azar, física, hash espacial, A*, Verlet, balance, ruido | 6 pruebas contra los vectores |
-| `python/` | Python | Herramientas de producción: arte, validación de contenido, balance, catálogos, notas de parche, hitboxes | 10 pruebas contra los vectores |
-| `cpp/` | C++17 | Núcleo header-only para Unreal, motores propios y consolas | `cpp/pruebas.cpp` (ver `cpp/LEEME.md`) |
-| `shaders/` | WGSL → GLSL | Postproceso, luz 2D, sombras por SDF, Jump Flooding, bloom Kawase, LUT | validados con naga; el GLSL se genera |
+Detalle: [docs/LENGUAJES.md](docs/LENGUAJES.md).
 
-Por qué cada lenguaje va en cada capa, cómo combinarlos y cómo portar una regla sin que cambie un solo número:
-**[docs/LENGUAJES.md](docs/LENGUAJES.md)**.
+### Por qué Rust (medido)
 
-## 10. Ejemplos ejecutables
+Misma carga, misma máquina (`node ejemplos/rendimiento.ts` contra `cargo run --release --example rendimiento`):
+
+| Carga | TypeScript | Rust |
+|---|---:|---:|
+| 20 000 rayos contra 2 000 personajes | 2 553 ms | 675 ms con el mismo algoritmo · **23,5 ms con grilla + DDA** (108×) |
+| Campo de flujo 256×256 ×20 | 646 ms | 125 ms (5×) |
+| Horda de 50 000 agentes, por paso | — | 12,6 ms con 1 hilo · **4,2 ms con 24 hilos** (idéntico bit a bit) |
+| Niebla de guerra 256×256, 100 fuentes ×30 | 62 ms | 23 ms (2,7×) |
+
+Qué mover a Rust y qué no, patrones (SoA, grilla por conteo, DDA, cero asignaciones, hilos deterministas) y cómo
+usarlo desde Unity, Godot, Unreal, C, Python y la web: **[docs/RUST.md](docs/RUST.md)**.
+
+## 11. Ejemplos
 
 ```bash
-node ejemplos/plataformas.ts [semilla]   # nivel procedural, controlador, IA, daño, impacto, partículas, estilo
-node ejemplos/mmo.ts [jugadores]         # servidor autoritativo, interés, delta, anti-trampa, ms por tick
-node ejemplos/economia.ts [semilla]      # 200 partidas: de dónde entra el oro y por dónde sale
-node ejemplos/sonidos.ts [carpeta]       # genera 31 .wav con el sintetizador (materiales, rarezas, cortes)
+node ejemplos/rendimiento.ts             # benchmark TS (comparar con: cd rust && cargo run --release --example rendimiento)
+node ejemplos/shooter3d.ts [semilla]     # shooter 3D táctico: arma + accesorios, penetración, blindaje, partes, director, lag, feedback
+node ejemplos/plataformas.ts [semilla]   # plataformas: nivel procedural, controlador, IA, daño, impacto, estilo
+node ejemplos/mmo.ts [jugadores]         # servidor autoritativo, interés, delta, anti-trampa
+node ejemplos/economia.ts [semilla]      # fuentes y sumideros de oro con las reglas de un modelo
+node ejemplos/sonidos.ts [carpeta]       # 31 .wav generados por código
 ```
 
-## 11. Pruebas y verificación
+## 12. Pruebas, determinismo y verificación
 
 ```bash
-npm test                 # pruebas de TypeScript
-npm run tipos            # chequeo estricto de tipos
-./verificar.sh           # TODO: tipos, pruebas TS, Rust, shaders, Python y C++ si hay compilador (Windows: .\verificar.ps1)
+npm test             # pruebas (incluye golden master y reglas de arquitectura)
+npm run tipos        # TypeScript estricto
+npm run indice       # regenera el índice
+npm run golden       # regenera el golden master (solo si una simulación cambió a propósito)
+./verificar.sh       # todo, en todos los lenguajes (Windows: .\verificar.ps1)
 ```
 
-Las pruebas cubren reglas con semilla fija, física con posiciones exactas, invariantes procedurales sobre cientos de
-semillas (todo nivel es alcanzable, toda sala es recorrible), balance simulado nivel a nivel, netcode con pérdida de
-paquetes y la igualdad numérica entre lenguajes.
+El **golden master** guarda el estado completo de 7 simulaciones (controlador 3D, arma, salud por partes, vehículo,
+director, turnos + mazo, lanzador) cada N pasos: si algo diverge, el test dice el campo y el paso. Tolerancias: exacto
+dentro de TypeScript, ε relativo 1e-6 entre lenguajes. Ver [docs/DETERMINISMO.md](docs/DETERMINISMO.md).
 
-## 12. Cómo extender la librería
+## 13. Para asistentes de IA
 
-1. **Cambia datos antes que código**: perfiles, tablas, curvas, afijos, cajas y recetas son objetos que se
-   reemplazan pasando los tuyos.
-2. **Implementa las interfaces**: `MundoServidor`, `PlataformaLogros`, `Almacen`, `Resolutor` de fichas, `Mundo` de
-   diálogos. La librería define el contrato y tu juego lo cumple.
-3. **Mantén el dominio puro**: si una regla nueva necesita azar o tiempo, recíbelos como parámetro.
-4. **Prueba con semilla**: cada regla nueva lleva su test; si la portas a otro lenguaje, agrega sus casos a
-   `vectores/generar.ts` y regenera el archivo.
+- [`AGENTS.md`](AGENTS.md) (y `CLAUDE.md`): comandos y reglas no negociables.
+- [`docs/IA.md`](docs/IA.md): manual de experto de 0 a 100 (modelo mental, flujo, recetas por género, feedback, red,
+  errores típicos).
+- [`docs/INDICE.md`](docs/INDICE.md) y [`docs/catalogo.json`](docs/catalogo.json): todo lo que existe, generado desde
+  el código.
+- [`llms.txt`](llms.txt): resumen para modelos de lenguaje.
+- Referencias internas investigadas: [`docs/SHOOTER-3D.md`](docs/SHOOTER-3D.md) (cómo está hecho un shooter 3D, con
+  fuentes), [`docs/MOTORES.md`](docs/MOTORES.md) (Unity, Godot y Unreal), [`docs/RUST.md`](docs/RUST.md).
 
-## 13. Crear tu propia versión
+## 14. Cómo extender la librería
 
-La licencia permite **crear y publicar tus propias versiones** de ludokit: forks, ports a otros lenguajes o motores,
-recortes, ampliaciones o traducciones, gratis o comerciales. Solo te pide:
+1. **Datos antes que código**: curvas, tablas, perfiles y modelos se reemplazan pasando los tuyos.
+2. **Regla nueva** → `src/contextos/<x>/dominio/`, con cabecera de comentario y JSDoc (el índice los usa), azar y
+   tiempo por parámetro, escalas como `Curva`, y su test con semilla.
+3. **Simulación por pasos nueva** → escenario en `vectores/golden.ts` y `npm run golden`.
+4. **Género nuevo** → modelo en `src/modelos/catalogo.ts` con rasgos para el asistente (el test valida módulos,
+   rasgos y curvas).
+5. `npm run verificar`.
 
-- conservar el archivo `LICENSE` y el aviso de copyright;
-- decir en tu README que tu versión está **basada en ludokit de LATINALU**, con un enlace a este repositorio;
-- indicar que la modificaste (alcanza con un archivo de cambios o una nota);
-- no presentarla como la versión oficial ni el original como obra propia.
+## 15. Crear tu propia versión y licencia
 
-Si solo **usas** ludokit dentro de tu juego, alcanza con mencionarlo en los créditos o en un archivo de licencias de
-terceros.
+ludokit se publica bajo la **Licencia ludokit de Uso y Versiones Abiertas (LLVA) 1.0** ([`LICENSE`](LICENSE)): uso
+libre (también comercial) y versiones derivadas públicas permitidas. Para publicar tu versión:
 
-## 14. Licencia
+- conservar `LICENSE` y el aviso de copyright;
+- decir en tu README que está **basada en ludokit de LATINALU**, con enlace a este repositorio;
+- indicar que la modificaste;
+- no presentarla como la versión oficial.
 
-ludokit se publica bajo la **Licencia ludokit de Uso y Versiones Abiertas (LLVA) 1.0**: ver [`LICENSE`](LICENSE).
-En resumen: uso libre (también comercial), versiones derivadas públicas permitidas con atribución, cambios
-identificados y sin garantía.
+Si solo **usás** ludokit en tu juego, alcanza con mencionarlo en los créditos. La carpeta
+[`terceros/vfx/`](terceros/vfx/) conserva su **licencia MIT** propia.
 
-La carpeta [`terceros/vfx/`](terceros/vfx/) contiene un motor de efectos visuales de terceros con **licencia MIT**
-propia ([`LICENSE`](terceros/vfx/LICENSE) y [`NOTICE.md`](terceros/vfx/NOTICE.md)). Esa licencia se mantiene: si
-redistribuyes esa carpeta, conserva sus avisos.
+## 16. Preguntas frecuentes
 
-## 15. Preguntas frecuentes
+**¿Necesito usar todos los módulos?** No. Cada contexto depende solo del núcleo (y a veces de otro contexto).
 
-**¿Necesito usar todos los módulos?** No. Cada contexto depende solo del núcleo (y a veces de otro contexto). Se
-pueden copiar sueltos.
+**¿Funciona con mi motor?** Sí: la librería no dibuja ni lee el teclado. En Godot, Unity o Unreal se usa el núcleo en
+Rust/C++ o se porta la regla, y se verifica con los vectores compartidos.
 
-**¿Funciona con mi motor?** Sí: la librería no dibuja ni lee el teclado. En Godot, Unity o Unreal se porta la regla
-al lenguaje del motor (o se usa el núcleo en Rust/C++) y se verifica con los vectores compartidos.
+**¿Los números son obligatorios?** No. Las reglas no traen números de ningún juego: los modelos (`modelos.piezas`) y
+los catálogos (`datos`) son puntos de partida propios. Cambialos por los tuyos.
 
-**¿Por qué TypeScript como referencia?** Corre en el navegador, en Node y en el servidor con el mismo código, que es
-justo lo que la predicción de red necesita. Lo pesado tiene su versión en Rust.
+**¿Hay un límite de niveles, pisos o dificultad?** No, salvo que tu juego lo defina: todas las curvas aceptan
+cualquier nivel (`curva.topeSuave` frena el crecimiento sin cortarlo).
 
-**¿Los números por defecto son obligatorios?** No. Los presets (`*_ESTANDAR`, `REGLAS_*`, `*_EJEMPLO`) son puntos de
-partida medidos. Cámbialos por los de tu juego.
+**¿Puedo mezclar géneros?** Sí: `modelos.combinar([...])` fusiona reglas y te muestra los conflictos.
 
-**¿Puedo publicar un juego comercial hecho con esto?** Sí, con la atribución de la sección 13.
+**¿Puedo publicar un juego comercial?** Sí, con la atribución de la sección 15.

@@ -2,18 +2,12 @@
 // Modelarlo como capas permite mostrar el desglose en la interfaz, agregar capas sin tocar la fórmula y
 // reemplazar una capa entera (modo justo: todos con la misma capa de equipo).
 
-export const STATS_ESTANDAR = [
-  "golpe", "patada", "defensa", "hp", "mp", "habilidad", "habilidadNueva", "especial", "especialFinal", "agarre",
-] as const;
+// Los nombres de los stats los define cada juego (fuerza/destreza, ataque/defensa, daño de arma/blindaje...): ver
+// `presets/` para listas de partida por género.
 
-export type Stat = (typeof STATS_ESTANDAR)[number];
+export type Stat = string;
 
 export type Capa = Readonly<Partial<Record<string, number>>>;
-
-export const BASE_ESTANDAR: Capa = {
-  golpe: 200, patada: 200, defensa: 200, hp: 3500, mp: 200,
-  habilidad: 200, habilidadNueva: 200, especial: 200, especialFinal: 200, agarre: 200,
-};
 
 export function componerStats(capas: readonly Capa[]): Record<string, number> {
   const total: Record<string, number> = {};

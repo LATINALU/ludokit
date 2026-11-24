@@ -4,6 +4,7 @@
 
 import { tirarDrop, type ModoDrop } from "./drops.ts";
 import type { Azar } from "../../../nucleo/azar.ts";
+import { evaluar, type Curva } from "../../../nucleo/escalado.ts";
 
 export interface ContextoBotin {
   readonly nivel: number;
@@ -19,9 +20,9 @@ export interface TablaFichas {
   readonly entradas: ReadonlyArray<readonly [string, number]>;
   /** Siempre caen (jefes). */
   readonly garantizadas?: readonly string[];
-  /** Moneda [min, max] escalada por nivel: × (1 + crecimiento × (nivel − 1)). */
+  /** Moneda [min, max] en el nivel 1, multiplicada por `monedaPorNivel` (sin curva no escala). */
   readonly moneda?: readonly [number, number];
-  readonly crecimientoMoneda?: number;
+  readonly monedaPorNivel?: Curva;
 }
 
 export type Resolutor<R> = (ficha: string, azar: Azar, ctx: ContextoBotin) => R | null;
@@ -44,15 +45,7 @@ export function soltarBotin<R>(azar: Azar, tabla: TablaFichas, ctx: ContextoBoti
   let moneda = 0;
   if (tabla.moneda) {
     const [a, b] = tabla.moneda;
-    moneda = Math.round((a + Math.floor(azar.siguiente() * (b - a + 1))) * (1 + (tabla.crecimientoMoneda ?? 0.6) * (ctx.nivel - 1)));
+    moneda = Math.round((a + Math.floor(azar.siguiente() * (b - a + 1))) * (tabla.monedaPorNivel ? evaluar(tabla.monedaPorNivel, Math.max(1, ctx.nivel)) : 1));
   }
   return { premios, moneda };
 }
-
-/** Tablas de ejemplo para un juego de acción con botín. */
-export const TABLAS_EJEMPLO: Readonly<Record<string, TablaFichas>> = {
-  comun: { modo: "cada-uno", entradas: [["pocion", 0.08], ["material", 0.06], ["equipo", 0.025], ["carta", 0.13]], moneda: [3, 9] },
-  elite: { modo: "cada-uno", entradas: [["pocion", 0.22], ["material", 0.25], ["equipo", 0.24], ["carta", 0.4], ["unico", 0.002]], moneda: [15, 33] },
-  cofre: { modo: "ponderado", entradas: [["equipo", 54], ["carta", 28], ["material", 10], ["unico", 0.6]] },
-  jefe: { modo: "cada-uno", garantizadas: ["equipo"], entradas: [["carta", 0.6], ["unico", 0.05]], moneda: [180, 270] },
-};

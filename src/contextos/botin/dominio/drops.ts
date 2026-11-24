@@ -50,10 +50,3 @@ export function tablaPorNivel(rangos: ReadonlyArray<readonly [number, number]>, 
     return defecto;
   };
 }
-
-/** Rangos de ejemplo: nivel máximo del enemigo -> índice de tabla de botín (una tabla cada 2-3 niveles). */
-export const RANGOS_DROP_ESTANDAR: ReadonlyArray<readonly [number, number]> = [
-  [5, 38], [8, 39], [10, 40], [12, 41], [15, 42], [18, 43], [20, 44], [22, 45], [25, 46], [28, 47], [30, 48],
-  [32, 49], [35, 50], [38, 51], [40, 52], [42, 53], [45, 54], [48, 55], [50, 56], [52, 57], [55, 58], [58, 59],
-  [60, 60], [62, 61], [65, 62], [68, 63],
-];
